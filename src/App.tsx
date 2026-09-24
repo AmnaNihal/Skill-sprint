@@ -2,7 +2,6 @@ import React from 'react';
 import { useApp } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
-import { WorkflowFooter } from './components/layout/WorkflowFooter';
 
 import { LandingView } from './components/views/LandingView';
 import { AuthView } from './components/views/AuthView';
@@ -41,7 +40,7 @@ export const App: React.FC = () => {
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <Header />
-            <main className="flex-1 p-6 sm:p-8 max-w-7xl w-full mx-auto">
+            <main className="flex-1 p-6 sm:p-8 max-w-7xl w-full mx-auto pb-12">
               {currentView === 'dashboard' && <DashboardView />}
               {currentView === 'documents' && <DocumentsView />}
               {currentView === 'matrix' && <MatrixView />}
@@ -55,9 +54,6 @@ export const App: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Persistent End-to-End Workflow Strip */}
-      <WorkflowFooter />
 
       {/* Global Interactive Modals */}
       <UploadDocModal />

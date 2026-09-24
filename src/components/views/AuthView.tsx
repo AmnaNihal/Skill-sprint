@@ -3,20 +3,21 @@ import { useApp } from '../../context/AppContext';
 import { IsometricHeroArt } from '../common/IsometricHeroArt';
 import {
   Sparkles, Shield, ArrowRight, Lock,
-  Mail, Key, UserCheck, AlertCircle, CheckCircle2
+  Mail, Key
 } from 'lucide-react';
 
 export const AuthView: React.FC = () => {
   const { setCurrentView, loginAs, addToast } = useApp();
   const [email, setEmail] = useState('admin@skillsprint.ai');
   const [password, setPassword] = useState('••••••••••••');
-  const [selectedDemoRole, setSelectedDemoRole] = useState<'admin' | 'learner'>('admin');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    loginAs(selectedDemoRole);
-    addToast("Logged in successfully as " + (selectedDemoRole === 'admin' ? 'John Doe (Admin)' : 'Alice Johnson (Learner)'), 'success');
-    setCurrentView(selectedDemoRole === 'admin' ? 'dashboard' : 'learnerDashboard');
+    // If the user logs in with an email containing 'admin', default to admin, otherwise learner
+    const role = email.toLowerCase().includes('admin') ? 'admin' : 'learner';
+    loginAs(role);
+    addToast("Signed in successfully to Skillsprint AI", 'success');
+    setCurrentView(role === 'admin' ? 'dashboard' : 'learnerDashboard');
   };
 
   return (
@@ -29,12 +30,7 @@ export const AuthView: React.FC = () => {
         <div className="lg:col-span-6 p-8 sm:p-12 bg-white text-slate-900 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 cursor-pointer mb-8" onClick={() => setCurrentView('landing')}>
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-600/30">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <span className="text-xl font-bold tracking-tight text-slate-900">
-                Skillsprint <span className="text-purple-600">AI</span>
-              </span>
+              <img src="/logo.png" alt="SkillSprint AI" className="h-12 w-auto object-contain rounded-xl drop-shadow-[0_0_10px_rgba(168,85,247,0.3)]" />
             </div>
 
             <div className="space-y-2 mb-8">
@@ -42,32 +38,6 @@ export const AuthView: React.FC = () => {
               <p className="text-slate-500 text-sm">
                 Enter your enterprise credentials to access your onboarding dashboard.
               </p>
-            </div>
-
-            {/* Role quick selector toggle */}
-            <div className="mb-6 p-1 bg-slate-100 rounded-xl flex items-center">
-              <button
-                type="button"
-                onClick={() => { setSelectedDemoRole('admin'); setEmail('admin@skillsprint.ai'); }}
-                className={"flex-1 py-2 text-xs font-bold rounded-lg transition " + (
-                  selectedDemoRole === 'admin'
-                    ? "bg-white text-purple-700 shadow-sm"
-                    : "text-slate-500 hover:text-slate-900"
-                )}
-              >
-                Admin (John Doe)
-              </button>
-              <button
-                type="button"
-                onClick={() => { setSelectedDemoRole('learner'); setEmail('alice.johnson@skillsprint.ai'); }}
-                className={"flex-1 py-2 text-xs font-bold rounded-lg transition " + (
-                  selectedDemoRole === 'learner'
-                    ? "bg-white text-purple-700 shadow-sm"
-                    : "text-slate-500 hover:text-slate-900"
-                )}
-              >
-                Learner (Alice Johnson)
-              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -82,6 +52,7 @@ export const AuthView: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    placeholder="name@company.com"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-purple-600 focus:bg-white transition"
                   />
                 </div>
@@ -122,7 +93,7 @@ export const AuthView: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-purple-600/30 transition flex items-center justify-center gap-2 mt-2"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-purple-600/30 transition flex items-center justify-center gap-2 mt-4"
               >
                 <span>Sign In to Platform</span>
                 <ArrowRight className="w-4 h-4" />
