@@ -24,7 +24,12 @@ from document_processing.chunker import chunk_document
 from document_processing.parser import parse_document
 from genai_pipeline.generator import detect_injection
 
-COLLECTION_DIR = BACKEND_DIR.parents[1] / "Nexora_Technologies_Document_Collection"
+REPO_DIR = BACKEND_DIR.parent
+COLLECTION_CANDIDATES = [
+    REPO_DIR / "sample_documents" / "nexora",
+    BACKEND_DIR.parents[1] / "Nexora_Technologies_Document_Collection",
+]
+COLLECTION_DIR = next((p for p in COLLECTION_CANDIDATES if p.exists()), COLLECTION_CANDIDATES[0])
 CURRENT_DIR = COLLECTION_DIR / "current"
 METADATA_FILE = COLLECTION_DIR / "metadata" / "document_metadata.csv"
 MATRIX_FILE = COLLECTION_DIR / "metadata" / "role_requirement_matrix_seed.csv"

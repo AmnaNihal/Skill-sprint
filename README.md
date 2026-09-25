@@ -65,7 +65,44 @@ Backend modules (see `backend/`):
 
 ---
 
-## 3. Tech stack
+## 3. Repository structure
+
+```
+Skill-sprint/
+├── backend/                      # FastAPI application
+│   ├── main.py
+│   ├── config/                   # settings (.env loader)
+│   ├── database/                 # Supabase PostgREST client
+│   ├── security/                 # JWT auth + RBAC
+│   ├── routers/                  # auth, documents, roles, plans, policy, reports
+│   ├── document_processing/      # PDF/DOCX parsing + chunking
+│   ├── document_validation/      # metadata validation
+│   ├── role_matrix/              # requirement extraction (AI + fallback)
+│   ├── genai_pipeline/           # Pipeline 1: generation, schema, consistency
+│   ├── python_validation/        # Pipeline 2: ground-truth validation
+│   ├── comparison_engine/        # GenAI vs Python comparison
+│   ├── hallucination_checks/     # unsupported-content detection
+│   ├── contradiction_checks/     # contradiction detection
+│   ├── policy_management/        # precedence, impact, regeneration
+│   ├── schemas/                  # Pydantic models
+│   ├── prompt_templates/         # versioned prompts
+│   ├── tools/                    # dataset import/extraction + report generators
+│   ├── tests/                    # pytest suite
+│   ├── requirements.txt
+│   └── .env.example
+├── sample_documents/nexora/      # fictional company dataset (current/historical/metadata)
+├── reports/                      # generated comparison/validation reports
+├── documentation/                # project report, install/execution, security, checklist
+├── src/                          # React frontend (components, context, lib)
+├── public/
+├── README.md
+├── AI_USAGE.md
+└── LICENSE
+```
+
+---
+
+## 4. Tech stack
 
 - **Backend:** FastAPI (Python 3.12)
 - **Frontend:** React + TypeScript + Vite + Tailwind
@@ -77,9 +114,9 @@ Backend modules (see `backend/`):
 
 ---
 
-## 4. Installation
+## 5. Installation
 
-See [`docs/INSTALLATION.md`](docs/INSTALLATION.md) for full instructions.
+See [`documentation/INSTALLATION.md`](documentation/INSTALLATION.md) for full instructions.
 
 Quick start:
 
@@ -106,7 +143,7 @@ Environment variables (`.env`) are required for Supabase and at least one AI pro
 
 ---
 
-## 5. Running & demo credentials
+## 6. Running & demo credentials
 
 - Frontend: <http://localhost:3000>
 - API: <http://127.0.0.1:8000> · docs at `/docs`
@@ -119,11 +156,11 @@ Environment variables (`.env`) are required for Supabase and at least one AI pro
 | Manager | `manager@skillsprint.local` | `manager123` |
 | Learner | `learner@skillsprint.local` | `learner123` |
 
-See [`docs/EXECUTION.md`](docs/EXECUTION.md) for the end-to-end workflow.
+See [`documentation/EXECUTION.md`](documentation/EXECUTION.md) for the end-to-end workflow.
 
 ---
 
-## 6. Key API endpoints
+## 7. Key API endpoints
 
 | Method | Endpoint | Purpose |
 |---|---|---|
@@ -146,7 +183,7 @@ See [`docs/EXECUTION.md`](docs/EXECUTION.md) for the end-to-end workflow.
 
 ---
 
-## 7. Testing
+## 8. Testing
 
 ```powershell
 cd backend
@@ -158,17 +195,17 @@ schema validity, precedence, supplementing, and generation consistency.
 
 ---
 
-## 8. Project documentation
+## 9. Project documentation
 
-- [`docs/PROJECT_REPORT.md`](docs/PROJECT_REPORT.md) — technical report
-- [`docs/INSTALLATION.md`](docs/INSTALLATION.md) — setup
-- [`docs/EXECUTION.md`](docs/EXECUTION.md) — operating the app
-- [`docs/SECURITY_TESTING_REPORT.md`](docs/SECURITY_TESTING_REPORT.md) — security & prompt injection
-- [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) — final deliverables
+- [`documentation/PROJECT_REPORT.md`](documentation/PROJECT_REPORT.md) — technical report
+- [`documentation/INSTALLATION.md`](documentation/INSTALLATION.md) — setup
+- [`documentation/EXECUTION.md`](documentation/EXECUTION.md) — operating the app
+- [`documentation/SECURITY_TESTING_REPORT.md`](documentation/SECURITY_TESTING_REPORT.md) — security & prompt injection
+- [`documentation/SUBMISSION_CHECKLIST.md`](documentation/SUBMISSION_CHECKLIST.md) — final deliverables
 - [`AI_USAGE.md`](AI_USAGE.md) — AI usage declaration
 
 ---
 
-## 9. License
+## 10. License
 
 For academic/competition use. See the SRS for evaluation terms.

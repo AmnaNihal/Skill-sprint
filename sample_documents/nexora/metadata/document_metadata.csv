@@ -1,0 +1,31 @@
+Document ID,Title,Category,Version,Status,Effective Date,Owner,Folder
+NEX-HBK-001,Company Handbook,Corporate,2.0,Active,2026-09-01,People Operations,current
+NEX-HR-001,HR Policy,Human Resources,2.1,Active,2026-09-01,People Operations,current
+NEX-LEAVE-001,Leave Policy,Human Resources,2.0,Active,2026-09-01,People Operations,current
+NEX-SEC-001,Information Security Policy,Information Security,3.0,Active,2026-09-01,Information Security,current
+NEX-CON-001,Workplace Conduct Policy,People Operations,2.0,Active,2026-09-01,People Operations,current
+NEX-PRIV-001,Data Privacy Policy,Privacy,2.0,Active,2026-09-01,Privacy Office,current
+NEX-ENG-SOP-001,Engineering Department SOP,Engineering,2.0,Active,2026-09-01,Engineering Management,current
+NEX-OPS-SOP-001,IT and Cloud Operations SOP,IT Operations,2.0,Active,2026-09-01,IT Operations,current
+NEX-CS-SOP-001,Customer Support SOP,Customer Support,2.0,Active,2026-09-01,Customer Experience,current
+NEX-FIN-SOP-001,Finance Operations SOP,Finance,1.0,Active,2026-09-01,Finance Operations,current
+NEX-ROLE-001,Role Description - Software Engineer,Role Description,1.0,Active,2026-09-01,Engineering,current
+NEX-ROLE-002,Role Description - QA Engineer,Role Description,1.0,Active,2026-09-01,Engineering,current
+NEX-ROLE-003,Role Description - DevOps Engineer,Role Description,1.0,Active,2026-09-01,IT Operations,current
+NEX-ROLE-004,Role Description - Customer Support Executive,Role Description,1.0,Active,2026-09-01,Customer Support,current
+NEX-ROLE-005,Role Description - HR Executive,Role Description,1.0,Active,2026-09-01,People Operations,current
+NEX-ROLE-006,Role Description - Product Manager,Role Description,1.0,Active,2026-09-01,Product,current
+NEX-ROLE-007,Role Description - Data Analyst,Role Description,1.0,Active,2026-09-01,Data & Analytics,current
+NEX-ROLE-008,Role Description - Information Security Analyst,Role Description,1.0,Active,2026-09-01,Information Security,current
+NEX-ROLE-009,Role Description - UI/UX Designer,Role Description,1.0,Active,2026-09-01,Design,current
+NEX-ROLE-010,Role Description - Project Coordinator,Role Description,1.0,Active,2026-09-01,PMO,current
+NEX-PROC-001,Employee Onboarding Process,People Operations,2.0,Active,2026-09-01,People Operations,current
+NEX-PROC-002,Security Incident Response Process,Information Security,2.0,Active,2026-09-01,Information Security,current
+NEX-PROC-003,Employee Offboarding Process,People Operations,1.0,Active,2026-09-01,People Operations,current
+NEX-FAQ-001,Employee FAQs,FAQs,1.0,Active,2026-09-01,People Operations,current
+NEX-COMP-001,Compliance Instructions,Compliance,1.0,Active,2026-09-01,Compliance Office,current
+NEX-ESC-001,Escalation Procedures,Escalation,2.0,Active,2026-09-01,Operations Governance,current
+NEX-ADV-001,Training Notes - Adversarial Test Case,Security Test,1.0,Active,2026-09-01,Evaluation Team,current
+NEX-SEC-001,Information Security Policy,Information Security,2.0,Obsolete,2025-09-01,Information Security,historical_versions
+NEX-LEAVE-001,Leave Policy,Human Resources,1.0,Obsolete,2025-01-01,People Operations,historical_versions
+NEX-FAQ-002,Legacy Process FAQ,FAQs,1.0,Active,2026-09-01,Operations,current

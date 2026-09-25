@@ -15,7 +15,7 @@ tested, and is understood by the team. The **application itself** uses a GenAI A
 | 6 | AI coding assistant | Policy precedence & impact | Draft functions | `backend/policy_management/*`, `backend/routers/policy.py` | Implemented precedence, supersede, selective regeneration | `tests/test_policy.py` | Team |
 | 7 | AI coding assistant | Generation consistency | Draft score | `backend/genai_pipeline/consistency.py` | Jaccard weighting method | `tests/test_policy.py` | Team |
 | 8 | AI coding assistant | React frontend integration | Draft components | `src/components/**`, `src/context/AuthContext.tsx` | Wired backend JWT + bulk upload | `tsc --noEmit`, manual UI test | Team |
-| 9 | AI coding assistant | Documentation | Draft text | `README.md`, `docs/*` | Reviewed and corrected for accuracy | Manual review | Team |
+| 9 | AI coding assistant | Documentation | Draft text | `README.md`, `documentation/*` | Reviewed and corrected for accuracy | Manual review | Team |
 
 ## Notes
 

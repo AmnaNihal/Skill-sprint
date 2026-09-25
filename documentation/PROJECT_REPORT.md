@@ -105,7 +105,7 @@ unresolved contradictions or unsupported requirements.**
 
 JWT auth, role-based access, learner plan ownership, prompt-injection detection/sanitization,
 quarantine, untrusted-data handling, output schema validation, and audit retention.
-See `docs/SECURITY_TESTING_REPORT.md`.
+See `documentation/SECURITY_TESTING_REPORT.md`.
 
 ## 9. Testing
 

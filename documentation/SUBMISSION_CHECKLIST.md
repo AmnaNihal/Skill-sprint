@@ -4,18 +4,18 @@ Status legend: ✅ done · 🟡 partial · ⏳ pending (requires deployment/medi
 
 | # | Deliverable | Status | Location / notes |
 |---|---|---|---|
-| 1 | Project Report | 🟡 | `docs/PROJECT_REPORT.md` (extend with screenshots/diagrams) |
+| 1 | Project Report | 🟡 | `documentation/PROJECT_REPORT.md` (extend with screenshots/diagrams) |
 | 2 | Source Code | ✅ | `backend/`, `src/` |
-| 3 | Company Document Dataset | 🟡 | Fictional **Nexora Technologies** corpus imported; expand to full targets |
+| 3 | Company Document Dataset | ✅ | `sample_documents/nexora/` (current + historical + metadata) |
 | 4 | GenAI Pipeline Evidence | 🟡 | `genai_pipeline/`, `prompt_templates/`; runtime `generation_meta` in plans |
 | 5 | Python Validation Evidence | ✅ | `python_validation/`, `/validation/{id}`, tests |
-| 6 | GenAI/Python Comparison Report (≥100 rows) | ✅ | `docs/comparison_report.csv` (1666 rows) + `.json` |
+| 6 | GenAI/Python Comparison Report (≥100 rows) | ✅ | `reports/comparison_report.csv` (1666 rows) + `.json` |
 | 7 | Onboarding Plans for ≥10 roles | ✅ | Plans for all 10 demo roles (100% coverage) |
 | 8 | Validation Report | ✅ | `/reports/export` (CSV/JSON) |
-| 9 | Security Testing Report | ✅ | `docs/SECURITY_TESTING_REPORT.md` |
+| 9 | Security Testing Report | ✅ | `documentation/SECURITY_TESTING_REPORT.md` |
 | 10 | Test Cases | ✅ | `backend/tests/` (pytest, 17 tests) |
-| 11 | Installation Instructions | ✅ | `docs/INSTALLATION.md` |
-| 12 | Execution Instructions | ✅ | `docs/EXECUTION.md` |
+| 11 | Installation Instructions | ✅ | `documentation/INSTALLATION.md` |
+| 12 | Execution Instructions | ✅ | `documentation/EXECUTION.md` |
 | 13 | GitHub Repository | ✅ | https://github.com/AmnaNihal/Skill-sprint |
 | 14 | Deployed Application | ⏳ | Deployment + evaluator credentials pending |
 | 15 | Demonstration Video (MP4) | ⏳ | Record main workflows |

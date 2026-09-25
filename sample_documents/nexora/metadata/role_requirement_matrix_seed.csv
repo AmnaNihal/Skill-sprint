@@ -1,0 +1,13 @@
+Requirement ID,Role,Requirement,Category,Mandatory,Priority,Source Document,Source Section
+REQ-001,Software Engineer,Follow approved Git branching and code review workflow,Must Complete,Yes,High,NEX-ENG-SOP-001,Development Workflow
+REQ-002,Software Engineer,"Protect source code, credentials, and customer data",Must Demonstrate,Yes,High,NEX-SEC-001,Software and Secrets
+REQ-003,Customer Support Executive,Classify tickets by severity and customer impact,Must Demonstrate,Yes,High,NEX-CS-SOP-001,Classification
+REQ-004,Customer Support Executive,Escalate suspected security or privacy incidents,Must Demonstrate,Yes,High,NEX-CS-SOP-001,Escalation
+REQ-005,HR Executive,Protect employee personal data,Must Demonstrate,Yes,High,NEX-PRIV-001,Purpose and Access
+REQ-006,DevOps Engineer,Follow change management for material infrastructure changes,Must Complete,Yes,High,NEX-OPS-SOP-001,Change Management
+REQ-007,Information Security Analyst,Preserve evidence during incident investigation,Must Demonstrate,Yes,High,NEX-PROC-002,Investigate
+REQ-008,All Roles,Complete mandatory information-security training,Must Complete,Yes,High,NEX-SEC-001,Mandatory Training
+REQ-009,All Roles,Complete workplace conduct training,Must Complete,Yes,High,NEX-CON-001,Respectful Workplace
+REQ-010,All Roles,Follow approved information-sharing controls,Must Acknowledge,Yes,High,NEX-HBK-001,Information Handling
+REQ-011,Project Coordinator,"Track dependencies, risks, decisions, and actions",Must Demonstrate,Yes,Medium,NEX-ROLE-010,Core Responsibilities
+REQ-012,Data Analyst,Validate analysis and protect confidential data,Must Demonstrate,Yes,High,NEX-ROLE-007,Core Responsibilities

@@ -3,7 +3,7 @@
 Run from backend:
     python tools/export_comparison_report.py
 
-Writes docs/comparison_report.csv (and .json) with at least 100 comparison rows.
+Writes reports/comparison_report.csv (and .json) with at least 100 comparison rows.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from database.supabase_client import get_supabase
 
-OUT_DIR = BACKEND_DIR.parent / "docs"
+OUT_DIR = BACKEND_DIR.parent / "reports"
 
 
 def main() -> None:
