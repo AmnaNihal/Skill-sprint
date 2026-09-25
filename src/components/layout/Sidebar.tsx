@@ -90,7 +90,7 @@ export const Sidebar: React.FC = () => {
     .join('');
 
   return (
-    <aside className="w-64 shrink-0 bg-slate-950/90 border-r border-purple-900/30 flex flex-col justify-between p-4 sticky top-0 h-screen overflow-y-auto backdrop-blur-md">
+    <aside className="w-64 shrink-0 bg-slate-950/90 border-r border-purple-900/30 flex flex-col justify-between p-4 sticky top-12 h-[calc(100vh-3rem)] overflow-y-auto backdrop-blur-md">
       <div>
         <div
           onClick={() => go('landing')}

@@ -53,7 +53,7 @@ const RequireAuth: React.FC<{ children: React.ReactElement; adminOnly?: boolean 
 };
 
 const AppShell: React.FC<{ children: React.ReactElement }> = ({ children }) => (
-  <div className="flex flex-1 min-h-screen">
+  <div className="flex flex-1">
     <Sidebar />
     <div className="flex-1 flex flex-col min-w-0">
       <Header />
@@ -70,6 +70,8 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0b0914] text-slate-100 flex flex-col font-sans selection:bg-purple-500 selection:text-white">
+      <WorkflowFooter />
+
       <Routes>
         <Route path="/" element={<LandingView />} />
         <Route path="/login" element={<AuthView />} />
@@ -158,8 +160,6 @@ export const App: React.FC = () => {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-
-      <WorkflowFooter />
 
       <UploadDocModal />
       <AddRequirementModal />

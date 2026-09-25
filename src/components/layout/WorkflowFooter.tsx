@@ -40,8 +40,8 @@ export const WorkflowFooter: React.FC = () => {
   const pathFromTab = (tab: NavigationTab) => tabToPath[tab] || '/dashboard';
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 border-t border-purple-900/40 backdrop-blur-md py-2.5 px-4">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
+    <footer className="sticky top-0 z-50 h-12 shrink-0 bg-slate-950/95 border-b border-purple-900/40 backdrop-blur-md px-4">
+      <div className="max-w-7xl mx-auto h-full flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
         <div className="flex items-center gap-1.5 shrink-0 pr-2 border-r border-purple-900/30">
           <Sparkles className="w-4 h-4 text-purple-400" />
           <span className="text-[11px] font-bold text-white uppercase tracking-wider hidden sm:inline">

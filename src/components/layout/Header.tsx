@@ -34,7 +34,7 @@ export const Header: React.FC = () => {
     .join('');
 
   return (
-    <header className="h-16 bg-slate-950/80 border-b border-purple-900/30 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
+    <header className="h-16 bg-slate-950/80 border-b border-purple-900/30 backdrop-blur-md px-6 flex items-center justify-between sticky top-12 z-30">
       <div className="flex items-center gap-3">
         <span className="text-xs font-mono uppercase tracking-wider text-purple-400 font-bold bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20">
           {role.toUpperCase()} VIEW
