@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from comparison_engine.comparator import compare_results, summary
 from database.supabase_client import get_supabase
+from genai_pipeline.consistency import compare_generations
 from genai_pipeline.generator import GenerationError, generate_onboarding_plan
 from genai_pipeline.schema_validator import validate_genai_payload
 from hallucination_checks.detector import flag_unsupported
@@ -414,6 +415,68 @@ def revalidate(plan_id: str, user: dict = Depends(require_admin)):
         "sequence_issues": report.sequence_issues,
         "hallucinations": report.hallucinations,
     }
+
+
+@router.post("/{plan_id}/consistency")
+def consistency_check(plan_id: str, user: dict = Depends(require_admin)):
+    """Regenerate once and compare structured output for generation consistency (SRS)."""
+    sb = get_supabase()
+    row = _fetch_plan_row(sb, plan_id)
+    role = row.get("role") or (row.get("payload") or {}).get("role") or ""
+    stored = _normalize_plan(row.get("payload") or {})
+
+    reqs = _normalize_reqs(
+        [r for r in (sb.table("role_requirements").select("*").execute().data or []) if r.get("role") in (role, "All Roles")]
+    )
+    if not reqs:
+        raise HTTPException(400, "No requirements found for this role")
+
+    source_doc_ids = sorted({r["source_document_id"] for r in reqs if r.get("source_document_id")})
+    chunks = []
+    for did in source_doc_ids:
+        rows = (
+            sb.table("document_chunks")
+            .select("chunk_id,section_id,heading,text,document_id")
+            .eq("document_id", did)
+            .order("chunk_id")
+            .execute()
+            .data
+            or []
+        )
+        for c in rows:
+            chunks.append(
+                {
+                    "source_document_id": c.get("document_id"),
+                    "source_section_id": c.get("section_id") or "",
+                    "source_chunk_id": c.get("chunk_id") or "",
+                    "heading": c.get("heading") or "",
+                    "content": c.get("text") or "",
+                }
+            )
+    if not chunks:
+        raise HTTPException(400, "No source chunks available for consistency check")
+
+    try:
+        result = generate_onboarding_plan(
+            employee_name=stored.get("employee_name") or "",
+            role_title=role,
+            department=stored.get("department") or "",
+            experience_level="Beginner",
+            target_completion=stored.get("target_completion") or "30 Days",
+            joining_date="",
+            requirements=reqs,
+            source_blocks=chunks,
+        )
+    except GenerationError as e:
+        raise HTTPException(502, str(e))
+
+    comparison = compare_generations(stored, result["plan"])
+    payload = dict(row.get("payload") or {})
+    validation = dict(payload.get("validation") or {})
+    validation["consistency"] = {**comparison, "generation_model": result["meta"].get("model"), "checked_at": _now()}
+    payload["validation"] = validation
+    sb.table("plans").update({"payload": payload, "updated_at": _now()}).eq("id", row["id"]).execute()
+    return {"plan_id": str(row["id"]), "generation_model": result["meta"].get("model"), **comparison}
 
 
 @router.post("/review")

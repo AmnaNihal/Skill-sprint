@@ -168,6 +168,33 @@ def learner_dashboard(plan_id: str, user: dict = Depends(get_current_user)):
             }
         )
 
+    # Adaptive recommendations from incomplete mandatory modules and overall progress.
+    recommendations: list[dict] = []
+    for m in modules:
+        m_tasks = [t for t in (m.get("tasks") or []) if isinstance(t, dict)]
+        total = len(m_tasks)
+        completed = sum(1 for t in m_tasks if t.get("completed"))
+        if m.get("mandatory") and (total == 0 or completed < total):
+            recommendations.append(
+                {
+                    "area": m.get("module_title") or m.get("title") or "Module",
+                    "reason": "Mandatory module incomplete",
+                    "activity": f"Complete '{m.get('module_title') or m.get('title')}'",
+                    "due_stage": m.get("due_stage") or "Week 1",
+                    "requirement_ids": m.get("requirement_ids") or [],
+                }
+            )
+    if progress < 50:
+        recommendations.append(
+            {
+                "area": "Overall onboarding",
+                "reason": "Low overall completion progress",
+                "activity": "Prioritise Day-1 and Week-1 mandatory modules",
+                "due_stage": "Day 1",
+                "requirement_ids": [],
+            }
+        )
+
     return {
         "plan": flat,
         "modules": out_modules,
@@ -175,4 +202,8 @@ def learner_dashboard(plan_id: str, user: dict = Depends(get_current_user)):
         "tasks_completed": done,
         "quizzes_total": len(quizzes),
         "progress": progress,
+        "recommendations": recommendations[:8],
+        "adaptive_recommendations": recommendations[:8],
+        "weak_areas": [r["area"] for r in recommendations[:8]],
+        "plan_recommendations": payload.get("progress_recommendations") or [],
     }

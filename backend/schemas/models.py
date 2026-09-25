@@ -94,6 +94,11 @@ class ToggleTaskRequest(BaseModel):
     completed: bool
 
 
+class RegenerateRequest(BaseModel):
+    plan_id: str | int
+    document_id: str
+
+
 # ---- GenAI structured output (SRS Step 37/38) ----
 class QuizQuestion(BaseModel):
     question: str

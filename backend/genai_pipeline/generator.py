@@ -197,12 +197,20 @@ def sanitize_source_text(text: str) -> str:
 def detect_injection(text: str) -> list[str]:
     flags = []
     checks = [
-        (r"(?i)ignore\s+(all\s+)?previous\s+instructions", "ignore_previous_instructions"),
-        (r"(?i)you\s+are\s+now\s+an?\s+", "role_override"),
-        (r"(?i)approve\s+this\s+employee", "fake_approval"),
+        (r"(?i)ignore\s+(all\s+)?(previous|above)\s+instructions", "ignore_previous_instructions"),
+        (r"(?i)you\s+are\s+now\s+(an?\s+|in\s+)?", "role_override"),
+        (r"(?i)pretend\s+to\s+be", "role_override"),
+        (r"(?i)developer\s+mode", "developer_mode"),
+        (r"(?i)(approve\s+this\s+employee|mark\s+as\s+approved|approve\s+every)", "fake_approval"),
         (r"(?i)system\s*:", "fake_system_message"),
+        (r"(?i)assistant\s*:", "fake_assistant_message"),
         (r"(?i)do\s+not\s+follow\s+the\s+(rules|prompt)", "rule_bypass"),
+        (r"(?i)disregard\s+(the\s+)?(system\s+prompt|instructions|rules)", "prompt_override"),
+        (r"(?i)(override|disable|bypass)\s+(the\s+)?(validator|validation|requirement)", "validation_bypass"),
+        (r"(?i)grant\s+admin|admin\s+access", "privilege_escalation"),
         (r"(?i)extract\s+the\s+api\s+key", "secret_theft"),
+        (r"(?i)reveal\s+(confidential|restricted|secret)", "data_exfiltration"),
+        (r"(?i)restricted\s+configuration", "config_exfiltration"),
     ]
     for pattern, name in checks:
         if re.search(pattern, text):
@@ -413,6 +421,47 @@ def _align_due_stages(plan: dict, requirements: list[dict]) -> int:
                 if STAGE_ORDER.index(task["due_stage"]) > STAGE_ORDER.index(earliest):
                     task["due_stage"] = earliest
     return changed
+
+
+def _enforce_module_mandatory(plan: dict, requirements: list[dict]) -> int:
+    """Mark a module (and its tasks) mandatory when it covers any mandatory requirement."""
+    mandatory_ids = {
+        str(r.get("requirement_id") or r.get("id"))
+        for r in requirements
+        if r.get("mandatory")
+    }
+    changed = 0
+    for module in plan.get("modules") or []:
+        covered = {str(x) for x in (module.get("requirement_ids") or [])}
+        if module.get("requirement_id"):
+            covered.add(str(module["requirement_id"]))
+        if covered & mandatory_ids and not module.get("mandatory"):
+            module["mandatory"] = True
+            changed += 1
+        if module.get("mandatory"):
+            for task in module.get("tasks") or []:
+                if isinstance(task, dict):
+                    task["mandatory"] = True
+    return changed
+
+
+def _drop_dangling_prerequisites(plan: dict) -> int:
+    """Remove prerequisite references that do not match any module (avoids false sequence errors)."""
+    module_ids: set[str] = set()
+    module_titles: set[str] = set()
+    for module in plan.get("modules") or []:
+        module_ids.add(str(module.get("module_id") or ""))
+        module_ids.add(str(module.get("id") or ""))
+        module_titles.add(str(module.get("module_title") or ""))
+        module_titles.add(str(module.get("title") or ""))
+    removed = 0
+    for module in plan.get("modules") or []:
+        prerequisites = list(module.get("prerequisites") or [])
+        kept = [p for p in prerequisites if str(p) in module_ids or str(p) in module_titles]
+        if len(kept) != len(prerequisites):
+            removed += len(prerequisites) - len(kept)
+            module["prerequisites"] = kept
+    return removed
 
 
 def _requirements_payload(requirements: list[dict]) -> str:
@@ -634,6 +683,8 @@ def generate_onboarding_plan(
                     department, experience_level, target_completion,
                 )
                 aligned_modules = _align_due_stages(plan_data, requirements)
+                _enforce_module_mandatory(plan_data, requirements)
+                _drop_dangling_prerequisites(plan_data)
                 plan = _coerce_plan(plan_data, role_title)
                 meta = {
                     "prompt_version": PROMPT_VERSION,

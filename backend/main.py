@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config.settings import get_settings
-from routers import auth, documents, plans, reports, roles
+from routers import auth, documents, plans, policy, reports, roles
 
 settings = get_settings()
 
@@ -24,6 +24,7 @@ app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(roles.router)
 app.include_router(plans.router)
+app.include_router(policy.router)
 app.include_router(reports.router)
 
 

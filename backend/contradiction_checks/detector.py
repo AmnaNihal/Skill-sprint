@@ -3,6 +3,10 @@ import re
 from typing import Any
 
 _PROHIBITION_RE = re.compile(r"\b(?:must|shall|may)\s+not\b|\b(?:prohibited|forbidden)\b", re.IGNORECASE)
+_NEGATION_CUE_RE = re.compile(
+    r"\b(?:must\s+not|mustn'?t|do\s+not|don'?t|never|avoid|prohibited|forbidden|should\s+not|shall\s+not|cannot|can'?t|no\s+)\b",
+    re.IGNORECASE,
+)
 
 
 def detect_contradictions(
@@ -59,7 +63,9 @@ def detect_contradictions(
                     forbidden = matches[-1].group(0) if matches else ""
                     if matches:
                         forbidden = desc[matches[-1].end():][:60].strip()
-                    if forbidden and forbidden[:20] in text:
+                    # A task that repeats the rule with its own negation cue (e.g. "must not
+                    # share passwords") is teaching the restriction, not violating it.
+                    if forbidden and forbidden[:20] in text and not _NEGATION_CUE_RE.search(text):
                         title = t if isinstance(t, str) else t.get("title")
                         issues.append(
                             f"Task '{title}' may violate mandatory rule: "
