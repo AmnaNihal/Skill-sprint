@@ -1,14 +1,27 @@
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import {
-  FileText, Cpu, CheckCircle2, ShieldCheck,
-  UserCheck, GraduationCap, BarChart3, ChevronRight,
-  Layers, Sparkles
-} from 'lucide-react';
-import { NavigationTab } from '../../types';
+import { Sparkles, ChevronRight } from 'lucide-react';
+import type { NavigationTab } from '../../types';
+
+const tabToPath: Record<NavigationTab, string> = {
+  landing: '/',
+  auth: '/login',
+  dashboard: '/dashboard',
+  documents: '/documents',
+  matrix: '/matrix',
+  generatePlan: '/generate',
+  planDetails: '/plans',
+  validation: '/validation',
+  reviews: '/reviews',
+  learnerDashboard: '/learner',
+  reports: '/reports',
+};
 
 export const WorkflowFooter: React.FC = () => {
-  const { currentView, setCurrentView } = useApp();
+  const { setCurrentView } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const workflowSteps: { tab: NavigationTab; label: string; num: string }[] = [
     { tab: 'landing', label: 'Hero', num: '01' },
@@ -24,6 +37,8 @@ export const WorkflowFooter: React.FC = () => {
     { tab: 'reports', label: 'Reports', num: '11' },
   ];
 
+  const pathFromTab = (tab: NavigationTab) => tabToPath[tab] || '/dashboard';
+
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 border-t border-purple-900/40 backdrop-blur-md py-2.5 px-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
@@ -36,16 +51,21 @@ export const WorkflowFooter: React.FC = () => {
 
         <div className="flex items-center gap-1 sm:gap-2">
           {workflowSteps.map((step, idx) => {
-            const isActive = currentView === step.tab;
+            const path = pathFromTab(step.tab);
+            const isActive = location.pathname === path;
             return (
               <React.Fragment key={step.tab}>
                 <button
-                  onClick={() => setCurrentView(step.tab)}
-                  className={"flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition " + (
-                    isActive
-                      ? "bg-purple-600 text-white shadow-md shadow-purple-600/40 border border-purple-400/40 scale-105"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                  )}
+                  onClick={() => {
+                    setCurrentView(step.tab);
+                    navigate(path);
+                  }}
+                  className={
+                    'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition ' +
+                    (isActive
+                      ? 'bg-purple-600 text-white shadow-md shadow-purple-600/40 border border-purple-400/40 scale-105'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900')
+                  }
                 >
                   <span className="font-mono text-[10px] opacity-70">{step.num}</span>
                   <span>{step.label}</span>

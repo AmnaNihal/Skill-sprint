@@ -1,46 +1,87 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Upload, FileText, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
-import { DocumentCategory } from '../../types';
+import { api } from '../../lib/api';
+import { X, Upload, FileText } from 'lucide-react';
+import type { DocumentCategory } from '../../types';
 
 export const UploadDocModal: React.FC = () => {
   const { uploadModalOpen, setUploadModalOpen, addDocument, addToast } = useApp();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<DocumentCategory>('Architecture');
+  const [department, setDepartment] = useState('');
+  const [version, setVersion] = useState('1.0');
   const [tags, setTags] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   if (!uploadModalOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title) {
-      addToast('Please provide a document title', 'error');
+    if (!files.length) {
+      addToast('Please select one or more document files', 'error');
       return;
     }
 
     setIsUploading(true);
-    setTimeout(() => {
-      const docId = 'DOC-00' + Math.floor(Math.random() * 900 + 100);
-      addDocument({
-        id: docId,
-        title,
-        category,
-        version: '1.0',
-        uploadedAt: 'Just now',
-        status: 'Approved',
-        fileSize: file ? (file.size / (1024 * 1024)).toFixed(1) + ' MB' : '1.8 MB',
-        chunksCount: Math.floor(Math.random() * 20 + 10),
-        tags: tags.split(',').map(t => t.trim()).filter(Boolean)
-      });
-      setIsUploading(false);
-      setUploadModalOpen(false);
-      addToast('Document ' + docId + ' uploaded & parsed into vector chunks!', 'success');
+    try {
+      let imported = 0;
+      let requirements = 0;
+      const failures: string[] = [];
+
+      for (const file of files) {
+        try {
+          const form = new FormData();
+          form.append('file', file);
+          form.append('title', files.length === 1 ? title || file.name : file.name);
+          form.append('category', category);
+          form.append('department', department);
+          form.append('version', version);
+          form.append('role_hint', tags);
+
+          const res = await api.upload<{
+            id: string;
+            title: string;
+            chunks: number;
+            requirements_extracted: number;
+            injection_flags: string[];
+          }>('/documents/upload', form);
+
+          addDocument({
+            id: res.id,
+            title: res.title,
+            category,
+            version,
+            uploadedAt: 'Just now',
+            status: res.injection_flags?.length ? 'Quarantined' : 'Approved',
+            fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+            chunksCount: res.chunks,
+            tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+          });
+          imported += 1;
+          requirements += res.requirements_extracted;
+          if (res.injection_flags?.length) {
+            addToast(`${res.id} quarantined: ${res.injection_flags.join(', ')}`, 'error');
+          }
+        } catch (err) {
+          failures.push(`${file.name}: ${err instanceof Error ? err.message : 'upload failed'}`);
+        }
+      }
+
+      addToast(`${imported}/${files.length} documents processed: ${requirements} requirements extracted`, imported ? 'success' : 'error');
+      if (failures.length) addToast(`${failures.length} file(s) failed. See browser console.`, 'error');
+      if (failures.length) console.error('Bulk upload failures', failures);
+      if (!failures.length) setUploadModalOpen(false);
       setTitle('');
       setTags('');
-      setFile(null);
-    }, 1000);
+      setFiles([]);
+      setDepartment('');
+      setVersion('1.0');
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Upload failed', 'error');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -53,7 +94,7 @@ export const UploadDocModal: React.FC = () => {
             </div>
             <div>
               <h3 className="font-bold text-white text-base">Ingest Knowledge Document</h3>
-              <p className="text-xs text-slate-400">Upload technical specifications into the 6-stage pipeline</p>
+              <p className="text-xs text-slate-400">Upload PDF/DOCX into the 6-stage pipeline</p>
             </div>
           </div>
           <button
@@ -67,14 +108,13 @@ export const UploadDocModal: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-              Document Title
+              Document Title (single-file only)
             </label>
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. AWS Multi-Region Terraform Blueprint"
-              required
+              onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. InfoSec Policy v2"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
             />
           </div>
@@ -86,7 +126,7 @@ export const UploadDocModal: React.FC = () => {
               </label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as DocumentCategory)}
+                onChange={e => setCategory(e.target.value as DocumentCategory)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
               >
                 <option value="Architecture">Architecture</option>
@@ -96,16 +136,41 @@ export const UploadDocModal: React.FC = () => {
                 <option value="Company Policy">Company Policy</option>
               </select>
             </div>
-
             <div>
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                Tags (comma-separated)
+                Department
+              </label>
+              <input
+                type="text"
+                value={department}
+                onChange={e => setDepartment(e.target.value)}
+                placeholder="HR / Engineering"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                Version
+              </label>
+              <input
+                type="text"
+                value={version}
+                onChange={e => setVersion(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                Role hints (comma)
               </label>
               <input
                 type="text"
                 value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="aws, terraform, iac"
+                onChange={e => setTags(e.target.value)}
+                placeholder="Sales Executive, HR Executive"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
               />
             </div>
@@ -113,13 +178,34 @@ export const UploadDocModal: React.FC = () => {
 
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-              Source File (.pdf, .md, .docx, .json)
+              Files or Folder (.pdf, .docx, .txt, .md)
             </label>
-            <div className="border-2 border-dashed border-purple-900/50 hover:border-purple-600/60 rounded-2xl p-6 text-center bg-slate-950/40 cursor-pointer transition">
+            <label className="border-2 border-dashed border-purple-900/50 hover:border-purple-600/60 rounded-2xl p-6 text-center bg-slate-950/40 cursor-pointer transition block">
               <FileText className="w-8 h-8 text-purple-400 mx-auto mb-2 opacity-80" />
-              <p className="text-xs text-slate-300 font-medium">Click or drag & drop document file here</p>
-              <p className="text-[10px] text-slate-500 mt-1">Up to 50MB per file with automatic OCR & AST parsing</p>
-            </div>
+              <p className="text-xs text-slate-300 font-medium">
+                {files.length === 1 ? files[0].name : files.length ? `${files.length} files selected` : 'Click to select files or a folder'}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1">Max 25MB · PDF/DOCX parsing + chunking</p>
+              <input
+                type="file"
+                accept=".pdf,.docx,.txt,.md,.csv"
+                multiple
+                {...({ webkitdirectory: '' } as React.InputHTMLAttributes<HTMLInputElement>)}
+                className="hidden"
+                onChange={e => {
+                  const selected = Array.from(e.target.files ?? []);
+                  const preferred = new Map<string, File>();
+                  for (const selectedFile of selected) {
+                    const stem = selectedFile.name.replace(/\.[^.]+$/, '').toLowerCase();
+                    const previous = preferred.get(stem);
+                    if (!previous || (selectedFile.name.toLowerCase().endsWith('.docx') && previous.name.toLowerCase().endsWith('.pdf'))) {
+                      preferred.set(stem, selectedFile);
+                    }
+                  }
+                  setFiles([...preferred.values()]);
+                }}
+              />
+            </label>
           </div>
 
           <div className="pt-4 flex items-center justify-end gap-3 border-t border-purple-900/30">
@@ -135,7 +221,7 @@ export const UploadDocModal: React.FC = () => {
               disabled={isUploading}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 transition disabled:opacity-50"
             >
-              {isUploading ? 'Processing Pipeline...' : 'Start Pipeline Ingestion'}
+              {isUploading ? `Processing ${files.length} document(s)…` : 'Start AI Pipeline Ingestion'}
             </button>
           </div>
         </form>

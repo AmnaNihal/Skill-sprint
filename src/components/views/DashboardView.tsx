@@ -1,36 +1,80 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../lib/api';
 import {
   FileText, Layers, CheckCircle2, Shield,
-  ArrowRight, Plus, Upload, Play, Sparkles,
-  TrendingUp, Clock, AlertTriangle, ChevronRight, UserCheck
+  Sparkles, TrendingUp, ChevronRight, UserCheck, Upload, RefreshCw
 } from 'lucide-react';
 
-export const DashboardView: React.FC = () => {
-  const { documents, requirements, plans, validationItems, setCurrentView, setUploadModalOpen, setPlanReviewModalOpen, setSelectedPlanId } = useApp();
+interface AdminDash {
+  total_documents: number;
+  approved_documents: number;
+  total_roles: number;
+  total_plans: number;
+  total_requirements: number;
+  mandatory_requirements: number;
+  pending_reviews: number;
+  flagged_items: number;
+  total_employees: number;
+  avg_coverage: number;
+  plans_by_status: Record<string, number>;
+}
 
-  const totalDocs = documents.length;
-  const totalRoles = 10;
-  const totalPlans = plans.length;
-  const validationScore = 96;
+interface PlanRow {
+  id: string;
+  employee_name: string;
+  role_title: string;
+  department?: string;
+  status: string;
+  progress: number;
+  coverage_score?: number;
+}
+
+export const DashboardView: React.FC = () => {
+  const { setUploadModalOpen, setPlanReviewModalOpen, addToast } = useApp();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<AdminDash | null>(null);
+  const [plans, setPlans] = useState<PlanRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([
+      api.get<AdminDash>('/dashboard/admin'),
+      api.get<PlanRow[]>('/plans'),
+    ])
+      .then(([s, p]) => {
+        if (!alive) return;
+        setStats(s);
+        setPlans(p);
+      })
+      .catch(e => {
+        if (alive) addToast(e instanceof Error ? e.message : 'Failed to load dashboard', 'error');
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [addToast]);
 
   const recentActivities = [
-    { title: 'Doc DOC-001 ingested', time: '10 mins ago', desc: 'Chunking & metadata extraction complete' },
-    { title: 'Plan generated for Alice Johnson', time: '1 hour ago', desc: '4 modules synthesized with 98% rule match' },
-    { title: 'Deterministic rule engine pass', time: '3 hours ago', desc: 'Validated REQ-001..REQ-007 against SOC2 requirements' },
-    { title: 'Approved Senior SRE Onboarding Plan', time: 'Yesterday', desc: 'Signed off by John Doe' },
+    { title: 'Document ingestion pipeline ready', time: 'live', desc: 'PDF/DOCX parse → chunk → requirement extract' },
+    { title: 'Dual pipeline online', time: 'live', desc: 'OpenAI GenAI + Python ground-truth validation' },
+    { title: 'Supabase connected', time: 'live', desc: 'Auth, documents, matrix, plans, validation tables' },
   ];
 
   return (
     <div className="space-y-6 pb-20">
-      {/* Welcome Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-950/80 via-slate-900 to-indigo-950/70 border border-purple-800/40 p-6 sm:p-8 shadow-xl">
         <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium mb-3">
               <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-              <span>Admin Management Hub</span>
+              <span>Admin Management Hub · FastAPI + Supabase</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
               Enterprise Workforce Overview
@@ -49,7 +93,7 @@ export const DashboardView: React.FC = () => {
               Upload Doc
             </button>
             <button
-              onClick={() => setCurrentView('generatePlan')}
+              onClick={() => navigate('/generate')}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-bold shadow-lg shadow-purple-600/30 transition ring-1 ring-purple-400/30"
             >
               <Sparkles className="w-4 h-4" />
@@ -59,10 +103,16 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* 4 Metric KPI Cards */}
+      {loading && (
+        <div className="p-8 text-center text-slate-400">
+          <RefreshCw className="w-6 h-6 animate-spin mx-auto text-purple-400 mb-2" />
+          Loading live stats…
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div
-          onClick={() => setCurrentView('documents')}
+          onClick={() => navigate('/documents')}
           className="bg-slate-900/70 border border-purple-900/30 hover:border-purple-600/50 rounded-2xl p-5 cursor-pointer transition shadow-lg group"
         >
           <div className="flex items-center justify-between">
@@ -71,38 +121,34 @@ export const DashboardView: React.FC = () => {
               <FileText className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-white mt-2">{totalDocs}</p>
+          <p className="text-3xl font-extrabold text-white mt-2">{stats?.total_documents ?? '—'}</p>
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-purple-900/20 text-xs">
             <span className="text-emerald-400 flex items-center gap-1 font-medium">
-              <TrendingUp className="w-3.5 h-3.5" /> 100% Parsed
+              <TrendingUp className="w-3.5 h-3.5" /> {stats?.approved_documents ?? 0} Approved
             </span>
-            <span className="text-slate-400 group-hover:text-purple-300 flex items-center gap-1 transition">
-              Manage →
-            </span>
+            <span className="text-slate-400 group-hover:text-purple-300 flex items-center gap-1 transition">Manage →</span>
           </div>
         </div>
 
         <div
-          onClick={() => setCurrentView('matrix')}
+          onClick={() => navigate('/matrix')}
           className="bg-slate-900/70 border border-purple-900/30 hover:border-purple-600/50 rounded-2xl p-5 cursor-pointer transition shadow-lg group"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-slate-400">Configured Roles</p>
+            <p className="text-xs font-medium text-slate-400">Configured Roles / Req</p>
             <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition">
               <Layers className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-white mt-2">{totalRoles}</p>
+          <p className="text-3xl font-extrabold text-white mt-2">{stats?.total_roles ?? '—'}</p>
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-purple-900/20 text-xs">
-            <span className="text-purple-400 font-medium">32 Competencies</span>
-            <span className="text-slate-400 group-hover:text-purple-300 flex items-center gap-1 transition">
-              Matrix →
-            </span>
+            <span className="text-purple-400 font-medium">{stats?.total_requirements ?? 0} Requirements</span>
+            <span className="text-slate-400 group-hover:text-purple-300 flex items-center gap-1 transition">Matrix →</span>
           </div>
         </div>
 
         <div
-          onClick={() => setCurrentView('planDetails')}
+          onClick={() => navigate('/plans')}
           className="bg-slate-900/70 border border-purple-900/30 hover:border-purple-600/50 rounded-2xl p-5 cursor-pointer transition shadow-lg group"
         >
           <div className="flex items-center justify-between">
@@ -111,43 +157,37 @@ export const DashboardView: React.FC = () => {
               <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-white mt-2">{totalPlans}</p>
+          <p className="text-3xl font-extrabold text-white mt-2">{stats?.total_plans ?? '—'}</p>
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-purple-900/20 text-xs">
-            <span className="text-emerald-400 font-medium">6 In Progress</span>
-            <span className="text-slate-400 group-hover:text-purple-300 flex items-center gap-1 transition">
-              Inspect →
-            </span>
+            <span className="text-emerald-400 font-medium">Avg coverage {stats?.avg_coverage ?? 0}%</span>
+            <span className="text-slate-400 group-hover:text-purple-300 flex items-center gap-1 transition">Inspect →</span>
           </div>
         </div>
 
         <div
-          onClick={() => setCurrentView('validation')}
+          onClick={() => navigate('/validation')}
           className="bg-slate-900/70 border border-purple-900/30 hover:border-purple-600/50 rounded-2xl p-5 cursor-pointer transition shadow-lg group"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-slate-400">Validation Score</p>
+            <p className="text-xs font-medium text-slate-400">Flagged / Reviews</p>
             <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition">
               <Shield className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-emerald-400 mt-2">{validationScore}%</p>
+          <p className="text-3xl font-extrabold text-emerald-400 mt-2">{stats?.flagged_items ?? '—'}</p>
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-purple-900/20 text-xs">
-            <span className="text-slate-400 font-medium">Deterministic Rule Match</span>
-            <span className="text-slate-400 group-hover:text-purple-300 flex items-center gap-1 transition">
-              Audit →
-            </span>
+            <span className="text-slate-400 font-medium">{stats?.pending_reviews ?? 0} pending sign-offs</span>
+            <span className="text-slate-400 group-hover:text-purple-300 flex items-center gap-1 transition">Audit →</span>
           </div>
         </div>
       </div>
 
-      {/* Main Row: Recent Plans + Activity Stream */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Active Onboarding Plans */}
         <div className="lg:col-span-7 bg-slate-900/80 rounded-2xl border border-purple-900/30 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-white">Active Onboarding Pipelines</h2>
             <button
-              onClick={() => setCurrentView('generatePlan')}
+              onClick={() => navigate('/generate')}
               className="text-xs text-purple-400 hover:text-purple-300 font-semibold flex items-center gap-1"
             >
               + Create New
@@ -158,18 +198,18 @@ export const DashboardView: React.FC = () => {
             {plans.map(p => (
               <div
                 key={p.id}
-                onClick={() => { setSelectedPlanId(p.id); setCurrentView('planDetails'); }}
+                onClick={() => navigate(`/plans/${p.id}`)}
                 className="py-4 flex items-center justify-between gap-4 hover:bg-purple-950/20 px-2 rounded-xl transition cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                    {p.employeeName.split(' ').map(n => n[0]).join('')}
+                    {(p.employee_name || 'U').split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-white group-hover:text-purple-300 transition">
-                      {p.employeeName}
+                      {p.employee_name}
                     </h3>
-                    <p className="text-xs text-slate-400">{p.roleTitle} • {p.department}</p>
+                    <p className="text-xs text-slate-400">{p.role_title}{p.department ? ` • ${p.department}` : ''}</p>
                   </div>
                 </div>
 
@@ -177,7 +217,7 @@ export const DashboardView: React.FC = () => {
                   <div className="text-right hidden sm:block">
                     <p className="text-xs font-semibold text-purple-300">{p.progress}% Completed</p>
                     <div className="w-24 bg-slate-800 rounded-full h-1.5 mt-1 overflow-hidden">
-                      <div className="bg-purple-500 h-full rounded-full" style={{ width: p.progress + '%' }} />
+                      <div className="bg-purple-500 h-full rounded-full" style={{ width: `${p.progress}%` }} />
                     </div>
                   </div>
                   <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
@@ -187,13 +227,17 @@ export const DashboardView: React.FC = () => {
                 </div>
               </div>
             ))}
+            {!loading && plans.length === 0 && (
+              <p className="text-slate-500 text-sm py-6 text-center">
+                No plans yet — upload docs, then generate a plan.
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Right: Activity Stream & System Health */}
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 p-6 space-y-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Recent Activity Stream</h3>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">System Status</h3>
             <div className="space-y-3">
               {recentActivities.map((act, index) => (
                 <div key={index} className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/60 border border-purple-900/20">
@@ -213,7 +257,9 @@ export const DashboardView: React.FC = () => {
           <div className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 rounded-2xl border border-purple-800/40 p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">Quick Action</span>
-              <span className="text-xs text-emerald-400 font-semibold">1 Pending Review</span>
+              <span className="text-xs text-emerald-400 font-semibold">
+                {stats?.pending_reviews ?? 0} Pending Review
+              </span>
             </div>
             <h3 className="text-base font-bold text-white mb-2">Sign-Off Pending Onboarding Plans</h3>
             <p className="text-xs text-slate-300 mb-4">

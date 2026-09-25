@@ -1,25 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, UserCheck, Shield, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { api } from '../../lib/api';
+import { X, UserCheck, Shield, CheckCircle2 } from 'lucide-react';
 
 export const PlanReviewModal: React.FC = () => {
-  const { planReviewModalOpen, setPlanReviewModalOpen, plans, selectedPlanId, updatePlanStatus, addToast } = useApp();
-  const [feedback, setFeedback] = useState('Validated all module citations against DOC-001..DOC-004. Ready for production release.');
+  const { planReviewModalOpen, setPlanReviewModalOpen, addToast, selectedPlanId } = useApp();
+  const [feedback, setFeedback] = useState(
+    'Validated all module citations against approved source documents. Ready for production release.',
+  );
+  const [busy, setBusy] = useState(false);
+  const [planId, setPlanId] = useState('');
+
+  useEffect(() => {
+    if (planReviewModalOpen && selectedPlanId) setPlanId(selectedPlanId);
+  }, [planReviewModalOpen, selectedPlanId]);
 
   if (!planReviewModalOpen) return null;
 
-  const currentPlan = plans.find(p => p.id === selectedPlanId) || plans[0];
-
-  const handleApprove = () => {
-    updatePlanStatus(currentPlan.id, 'Approved');
-    addToast('Plan ' + currentPlan.id + ' approved and finalized!', 'success');
-    setPlanReviewModalOpen(false);
-  };
-
-  const handleReject = () => {
-    updatePlanStatus(currentPlan.id, 'Pending Review');
-    addToast('Plan returned with requested revision notes.', 'info');
-    setPlanReviewModalOpen(false);
+  const submit = async (decision: 'Approved' | 'Rejected') => {
+    if (!planId.trim()) {
+      addToast('Enter Plan ID (e.g. PLAN-ABC123)', 'error');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.post('/plans/review', {
+        plan_id: planId.trim(),
+        decision,
+        comment: feedback,
+        override_result: decision,
+      });
+      addToast(
+        decision === 'Approved'
+          ? `Plan ${planId} approved and finalized!`
+          : `Plan ${planId} returned with revision notes.`,
+        decision === 'Approved' ? 'success' : 'info',
+      );
+      setPlanReviewModalOpen(false);
+      setPlanId('');
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'Review failed', 'error');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -32,7 +55,7 @@ export const PlanReviewModal: React.FC = () => {
             </div>
             <div>
               <h3 className="font-bold text-white text-base">Manager Review & Sign-Off</h3>
-              <p className="text-xs text-slate-400">Authorizing onboarding packet for {currentPlan.employeeName}</p>
+              <p className="text-xs text-slate-400">Authorizes plan status in Supabase + audit trail</p>
             </div>
           </div>
           <button
@@ -44,20 +67,33 @@ export const PlanReviewModal: React.FC = () => {
         </div>
 
         <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+              Plan ID
+            </label>
+            <input
+              type="text"
+              value={planId}
+              onChange={e => setPlanId(e.target.value)}
+              placeholder="PLAN-XXXXXX"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 font-mono focus:outline-none focus:border-purple-500"
+            />
+          </div>
+
           <div className="bg-slate-950 p-4 rounded-xl border border-purple-900/30 space-y-2">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Employee:</span>
-              <span className="text-white font-bold">{currentPlan.employeeName}</span>
+              <span className="text-slate-400">Decision writes to:</span>
+              <span className="text-purple-300 font-mono">onboarding_plans.status</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Target Role:</span>
-              <span className="text-purple-300 font-semibold">{currentPlan.roleTitle}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Validation Status:</span>
+              <span className="text-slate-400">Audit:</span>
               <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> 98% Rule Engine Match
+                <CheckCircle2 className="w-3.5 h-3.5" /> audit_logs + review_queue
               </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Override:</span>
+              <span className="text-slate-300">Original + reviewer decision both retained</span>
             </div>
           </div>
 
@@ -67,7 +103,7 @@ export const PlanReviewModal: React.FC = () => {
             </label>
             <textarea
               value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
+              onChange={e => setFeedback(e.target.value)}
               rows={3}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
             />
@@ -75,8 +111,9 @@ export const PlanReviewModal: React.FC = () => {
 
           <div className="pt-4 flex items-center justify-between border-t border-purple-900/30">
             <button
-              onClick={handleReject}
-              className="px-4 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl transition"
+              onClick={() => submit('Rejected')}
+              disabled={busy}
+              className="px-4 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl transition disabled:opacity-50"
             >
               Request Revisions
             </button>
@@ -88,11 +125,12 @@ export const PlanReviewModal: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={handleApprove}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition flex items-center gap-1.5"
+                onClick={() => submit('Approved')}
+                disabled={busy}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition flex items-center gap-1.5 disabled:opacity-50"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                Sign Off & Authorize
+                <Shield className="w-4 h-4" />
+                {busy ? 'Saving…' : 'Sign Off & Authorize'}
               </button>
             </div>
           </div>
