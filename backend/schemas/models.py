@@ -48,6 +48,27 @@ class EmployeeCreate(BaseModel):
     joining_date: Optional[str] = None
     manager: str = ""
     reporting_manager: str = ""
+    previous_experience: str = ""
+    required_competencies: list[str] = []
+    training_status: str = "Not Started"
+
+
+class EmployeeUpdate(BaseModel):
+    name: str | None = None
+    full_name: str | None = None
+    email: str | None = None
+    role: str | None = None
+    job_role: str | None = None
+    department: str | None = None
+    experience_level: str | None = None
+    location: str | None = None
+    joining_date: str | None = None
+    manager: str | None = None
+    reporting_manager: str | None = None
+    previous_experience: str | None = None
+    required_competencies: list[str] | None = None
+    training_status: str | None = None
+
 
 
 class RequirementCreate(BaseModel):

@@ -49,7 +49,7 @@ Documents → Validate → Parse → Chunk → Version/Metadata → Requirement 
 |---|---|---|---|---|---|---|---|
 | 6,7,8,9 Document upload/validate/parse/chunk | PDF+DOCX upload, validation, parsing, traceable chunks | `document_processing`, `document_validation` | `documents`, `document_chunks` | `POST /documents/upload`, `GET /documents`, `GET /documents/{id}/chunks` | Documents | `tests/*`, manual D1–D5 | ✅ |
 | 10 Version control | Active/superseded/history/effective | `policy_management/precedence`, `routers/policy` | `documents` (version, is_active) + `role_requirements.approval_status=Superseded` | `POST /policy/upload-version` | Policy/Docs | manual P3 | ✅ |
-| 11 Employee profiles | ID/name/role/dept/experience/joining/manager/status | `routers/roles` | `employees` | `GET/POST /employees` | Employees | manual | ✅ |
+| 11 Employee profiles | ID/name/role/dept/experience/joining/manager/status + training info | `routers/roles` | `employees` | `GET/POST /employees`, `GET/PUT/PATCH/DELETE /employees/{id}` | Employees | test_employees, manual E1–E8 | ✅ |
 | 12 Role Requirement Matrix | Ground-truth matrix, types, mandatory, source | `role_matrix` | `role_requirements` | `GET/POST/DELETE /requirements`, `GET /roles` | Matrix | manual M1–M4 | ✅ |
 | 13 Personalized onboarding | Role/dept/experience/time stages | `genai_pipeline` | `plans.payload` | `POST /plans/generate` | Generate Plan | manual G1 | ✅ |
 | 14 Learning modules | Full module schema | `schemas/models.py`, `genai_pipeline` | `plans.payload.modules` | `GET /plans/{id}` | Plan Details | test_generator | ✅ |

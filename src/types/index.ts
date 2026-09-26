@@ -2,6 +2,7 @@ export type NavigationTab =
   | 'landing'
   | 'auth'
   | 'dashboard'
+  | 'employees'
   | 'documents'
   | 'matrix'
   | 'generatePlan'

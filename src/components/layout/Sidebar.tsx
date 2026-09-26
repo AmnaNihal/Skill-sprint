@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   Sparkles, LayoutDashboard, FileText, Layers,
   Wand2, CheckCircle, ShieldCheck, UserCheck,
-  GraduationCap, BarChart3, LogOut
+  GraduationCap, BarChart3, LogOut, Users
 } from 'lucide-react';
 import type { NavigationTab } from '../../types';
 
@@ -13,6 +13,7 @@ const tabToPath: Record<NavigationTab, string> = {
   landing: '/',
   auth: '/login',
   dashboard: '/dashboard',
+  employees: '/employees',
   documents: '/documents',
   matrix: '/matrix',
   generatePlan: '/generate',
@@ -28,6 +29,7 @@ const pathToTab: Record<string, NavigationTab> = {
   '/login': 'auth',
   '/register': 'auth',
   '/dashboard': 'dashboard',
+  '/employees': 'employees',
   '/documents': 'documents',
   '/matrix': 'matrix',
   '/generate': 'generatePlan',
@@ -49,6 +51,7 @@ export const Sidebar: React.FC = () => {
 
   const adminNavItems: { tab: NavigationTab; label: string; icon: React.ReactNode; badge?: string }[] = [
     { tab: 'dashboard', label: 'Admin Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { tab: 'employees', label: 'Employees', icon: <Users className="w-4 h-4" /> },
     { tab: 'documents', label: 'Document Library', icon: <FileText className="w-4 h-4" /> },
     { tab: 'matrix', label: 'Role & Req Matrix', icon: <Layers className="w-4 h-4" /> },
     { tab: 'generatePlan', label: 'Generate Plan', icon: <Wand2 className="w-4 h-4" /> },

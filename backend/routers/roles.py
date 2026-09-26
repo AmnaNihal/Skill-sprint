@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 
 from database.supabase_client import get_supabase
-from schemas.models import EmployeeCreate, RequirementCreate, RoleCreate
+from schemas.models import EmployeeCreate, EmployeeUpdate, RequirementCreate, RoleCreate
 from security.auth import get_current_user, require_admin
 
 router = APIRouter(tags=["roles", "employees", "requirements"])
@@ -86,26 +86,92 @@ def create_role(payload: RoleCreate, user: dict = Depends(require_admin)):
     return {"id": rid, **payload.model_dump()}
 
 
+def _required_competencies(sb, role: str) -> list[str]:
+    try:
+        rows = sb.table("role_requirements").select("competency,role").execute().data or []
+    except Exception:
+        return []
+    comps = {
+        r.get("competency")
+        for r in rows
+        if r.get("competency") and r.get("role") in (role, "All Roles")
+    }
+    return sorted(comps)
+
+
+def _training_info(plans: list[dict], employee_id: str) -> dict:
+    mine = [p for p in plans if str(p.get("employee_id")) == str(employee_id)]
+    infos = []
+    for p in mine:
+        payload = p.get("payload") or {}
+        summary = (payload.get("validation") or {}).get("summary") or {}
+        infos.append(
+            {
+                "plan_id": str(p.get("id")),
+                "role": p.get("role"),
+                "status": p.get("status"),
+                "verification_status": summary.get("verification_status") or "",
+                "coverage": summary.get("coverage_score") or 0,
+                "traceability": summary.get("traceability_score") or 0,
+                "progress": payload.get("progress") or 0,
+                "created_at": p.get("created_at"),
+            }
+        )
+    avg = round(sum(i["progress"] for i in infos) / len(infos)) if infos else 0
+    return {"plans": infos, "plans_count": len(infos), "avg_progress": avg}
+
+
+def _employee_out(row: dict, user_email: str = "", training: dict | None = None, competencies: list[str] | None = None) -> dict:
+    return {
+        **row,
+        "id": row.get("employee_id"),
+        "name": row.get("name") or "",
+        "full_name": row.get("name") or "",
+        "job_role": row.get("role"),
+        "reporting_manager": row.get("manager"),
+        "email": user_email or "",
+        "training_status": row.get("training_status") or "Not Started",
+        "required_competencies": competencies or [],
+        "training": training or {"plans": [], "plans_count": 0, "avg_progress": 0},
+    }
+
+
 @router.get("/employees")
 def list_employees(user: dict = Depends(get_current_user)):
-    rows = (
-        get_supabase()
-        .table("employees")
-        .select("*")
-        .order("employee_id")
-        .execute()
-        .data
-        or []
-    )
+    sb = get_supabase()
+    rows = sb.table("employees").select("*").order("employee_id").execute().data or []
+    try:
+        plans = sb.table("plans").select("id,employee_id,role,status,payload,created_at").execute().data or []
+    except Exception:
+        plans = []
+    try:
+        users = sb.table("users").select("employee_id,email").execute().data or []
+    except Exception:
+        users = []
+    email_by_emp = {u.get("employee_id"): u.get("email") for u in users if u.get("employee_id")}
     return [
-        {
-            **r,
-            "full_name": r.get("name"),
-            "job_role": r.get("role"),
-            "reporting_manager": r.get("manager"),
-        }
+        _employee_out(r, email_by_emp.get(r.get("employee_id"), ""), _training_info(plans, r.get("employee_id")))
         for r in rows
     ]
+
+
+@router.get("/employees/{employee_id}")
+def get_employee(employee_id: str, user: dict = Depends(get_current_user)):
+    sb = get_supabase()
+    rows = sb.table("employees").select("*").eq("employee_id", employee_id).limit(1).execute().data or []
+    if not rows:
+        raise HTTPException(404, "Employee not found")
+    row = rows[0]
+    try:
+        plans = sb.table("plans").select("id,employee_id,role,status,payload,created_at").execute().data or []
+    except Exception:
+        plans = []
+    try:
+        users = sb.table("users").select("employee_id,email").eq("employee_id", employee_id).execute().data or []
+    except Exception:
+        users = []
+    email = users[0].get("email") if users else ""
+    return _employee_out(row, email, _training_info(plans, employee_id), _required_competencies(sb, row.get("role") or ""))
 
 
 @router.post("/employees")
@@ -124,13 +190,52 @@ def create_employee(payload: EmployeeCreate, user: dict = Depends(require_admin)
         "experience_level": payload.experience_level or "Beginner",
         "joining_date": payload.joining_date,
         "manager": payload.manager or payload.reporting_manager,
-        "training_status": "Not Started",
+        "training_status": payload.training_status or "Not Started",
     }
     try:
         sb.table("employees").insert(row).execute()
     except Exception as e:
         raise HTTPException(400, str(e))
-    return {"id": eid, **payload.model_dump(), "name": name, "role": role}
+    return {**payload.model_dump(), "id": eid, "name": name, "role": role, "employee_id": eid}
+
+
+@router.put("/employees/{employee_id}")
+@router.patch("/employees/{employee_id}")
+def update_employee(employee_id: str, payload: EmployeeUpdate, user: dict = Depends(require_admin)):
+    sb = get_supabase()
+    existing = sb.table("employees").select("*").eq("employee_id", employee_id).limit(1).execute().data or []
+    if not existing:
+        raise HTTPException(404, "Employee not found")
+    data = payload.model_dump(exclude_unset=True, exclude_none=True)
+    updates = {}
+    if "full_name" in data or "name" in data:
+        updates["name"] = data.get("full_name") or data.get("name")
+    if "job_role" in data or "role" in data:
+        updates["role"] = data.get("role") or data.get("job_role")
+    if "reporting_manager" in data or "manager" in data:
+        updates["manager"] = data.get("manager") or data.get("reporting_manager")
+    for field in ("department", "experience_level", "joining_date", "training_status"):
+        if field in data:
+            updates[field] = data[field]
+    if not updates:
+        return {**existing[0], "updated": False}
+    try:
+        sb.table("employees").update(updates).eq("employee_id", employee_id).execute()
+    except Exception as e:
+        raise HTTPException(400, str(e))
+    updated = sb.table("employees").select("*").eq("employee_id", employee_id).limit(1).execute().data or [existing[0]]
+    return {**updated[0], "updated": True}
+
+
+@router.delete("/employees/{employee_id}")
+def delete_employee(employee_id: str, user: dict = Depends(require_admin)):
+    sb = get_supabase()
+    existing = sb.table("employees").select("employee_id").eq("employee_id", employee_id).limit(1).execute().data or []
+    if not existing:
+        raise HTTPException(404, "Employee not found")
+    sb.table("employees").delete().eq("employee_id", employee_id).execute()
+    return {"ok": True, "employee_id": employee_id}
+
 
 
 @router.get("/requirements")

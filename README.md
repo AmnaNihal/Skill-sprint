@@ -169,6 +169,8 @@ See [`documentation/EXECUTION.md`](documentation/EXECUTION.md) for the end-to-en
 | POST | `/documents/upload` | Upload + parse + chunk + extract requirements (AI) |
 | GET | `/documents/{id}/chunks` | Source chunks (traceability) |
 | GET | `/requirements` | Role Requirement Matrix |
+| GET/POST | `/employees` | List / create employee profiles |
+| GET/PUT/PATCH/DELETE | `/employees/{id}` | View / update / delete a profile (+ training info) |
 | POST | `/plans/generate` | Pipeline 1 generation + Pipeline 2 validation |
 | POST | `/plans/{id}/revalidate` | Re-run Python validation |
 | POST | `/plans/{id}/consistency` | Repeated-generation consistency check |

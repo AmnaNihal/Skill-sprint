@@ -70,6 +70,30 @@ Invoke-RestMethod -Uri http://127.0.0.1:8000/documents/NEX-ENG-SOP-001/chunks -H
 
 ---
 
+## 3b. Employee profile management
+
+| ID | Steps | Expected | ✅ |
+|---|---|---|---|
+| E1 | Open `Employees` view | Employee list with ID, name, role, dept, experience, joining, manager, training status | |
+| E2 | Search by name/ID/role | Filtered results | |
+| E3 | Filter by role and training status | Only matching employees | |
+| E4 | `Add Employee` (name + role required) | New employee created and listed | |
+| E5 | Edit an employee (experience, dept, status, joining) | Changes persisted | |
+| E6 | Open a profile (view icon) | Training plans + required competencies shown | |
+| E7 | Delete an employee | Removed; profile GET returns `404` | |
+| E8 | Missing name/role on create | Rejected with message | |
+
+```powershell
+$emp  = Invoke-RestMethod -Uri http://127.0.0.1:8000/employees -Headers $h
+$one  = Invoke-RestMethod -Uri http://127.0.0.1:8000/employees/<employee_id> -Headers $h
+$body = @{ full_name='Test Emp'; role='Data Analyst'; department='Analytics'; experience_level='Intermediate'; joining_date='2026-11-01' } | ConvertTo-Json
+$new  = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/employees -ContentType 'application/json' -Headers $h -Body $body
+$upd  = Invoke-RestMethod -Method Put  -Uri "http://127.0.0.1:8000/employees/$($new.employee_id)" -ContentType 'application/json' -Headers $h -Body (@{ experience_level='Advanced' } | ConvertTo-Json)
+Invoke-RestMethod -Method Delete -Uri "http://127.0.0.1:8000/employees/$($new.employee_id)" -Headers $h
+```
+
+---
+
 ## 4. Pipeline 1 — GenAI plan generation
 
 | ID | Steps | Expected | ✅ |
