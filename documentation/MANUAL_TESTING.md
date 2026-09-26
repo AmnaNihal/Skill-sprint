@@ -51,6 +51,9 @@ Invoke-RestMethod -Uri http://127.0.0.1:8000/auth/me -Headers $h
 | D3 | Select a **whole folder** (Nexora `current/`) | Multiple docs processed; DOCX preferred over duplicate PDF | |
 | D4 | Open a document's chunks (`GET /documents/{id}/chunks`) | Section/heading/page references present | |
 | D5 | Upload `sample_documents/nexora/current/NEX-ADV-001_*.docx` | Status `Quarantined`, injection flags shown | |
+| D6 | Upload an empty/blank PDF or DOCX | Rejected: "document has insufficient content" — nothing created | |
+| D7 | Upload a file containing "Lorem ipsum…" | Rejected: "lorem ipsum placeholder text" — nothing created | |
+| D8 | Select multiple PDF/DOCX files at once | Each processed; folder upload not offered | |
 
 ```powershell
 Invoke-RestMethod -Uri http://127.0.0.1:8000/documents -Headers $h | Select-Object id,title,status

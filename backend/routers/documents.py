@@ -7,6 +7,7 @@ from config.settings import get_settings
 from database.supabase_client import get_supabase
 from document_processing.chunker import chunk_document
 from document_processing.parser import DocumentValidationError, parse_document
+from document_validation.content_quality import ensure_content_quality
 from document_validation.metadata import validate_metadata
 from genai_pipeline.generator import detect_injection
 from role_matrix.matrix import extract_requirements, extract_requirements_with_ai
@@ -101,6 +102,12 @@ async def upload_document(
 
     try:
         parsed = parse_document(filename, data, max_mb=settings.max_file_size_mb)
+    except DocumentValidationError as e:
+        raise HTTPException(400, str(e))
+
+    # Reject empty / placeholder / junk content before anything is created.
+    try:
+        ensure_content_quality(parsed.full_text)
     except DocumentValidationError as e:
         raise HTTPException(400, str(e))
 

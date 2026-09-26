@@ -94,7 +94,7 @@ export const UploadDocModal: React.FC = () => {
             </div>
             <div>
               <h3 className="font-bold text-white text-base">Ingest Knowledge Document</h3>
-              <p className="text-xs text-slate-400">Upload PDF/DOCX into the 6-stage pipeline</p>
+              <p className="text-xs text-slate-400">Python extract → chunk → AI requirements. Single or multiple PDF/DOCX.</p>
             </div>
           </div>
           <button
@@ -108,7 +108,7 @@ export const UploadDocModal: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-              Document Title (single-file only)
+              Document Title <span className="text-slate-500 normal-case font-normal">(optional)</span>
             </label>
             <input
               type="text"
@@ -122,7 +122,7 @@ export const UploadDocModal: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                Category
+                Category <span className="text-slate-500 normal-case font-normal">(optional)</span>
               </label>
               <select
                 value={category}
@@ -138,7 +138,7 @@ export const UploadDocModal: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                Department
+                Department <span className="text-slate-500 normal-case font-normal">(optional)</span>
               </label>
               <input
                 type="text"
@@ -153,7 +153,7 @@ export const UploadDocModal: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                Version
+                Version <span className="text-slate-500 normal-case font-normal">(optional)</span>
               </label>
               <input
                 type="text"
@@ -164,7 +164,7 @@ export const UploadDocModal: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                Role hints (comma)
+                Role hints (comma) <span className="text-slate-500 normal-case font-normal">(optional)</span>
               </label>
               <input
                 type="text"
@@ -178,19 +178,20 @@ export const UploadDocModal: React.FC = () => {
 
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-              Files or Folder (.pdf, .docx, .txt, .md)
+              Documents (.pdf, .docx)
             </label>
             <label className="border-2 border-dashed border-purple-900/50 hover:border-purple-600/60 rounded-2xl p-6 text-center bg-slate-950/40 cursor-pointer transition block">
               <FileText className="w-8 h-8 text-purple-400 mx-auto mb-2 opacity-80" />
               <p className="text-xs text-slate-300 font-medium">
-                {files.length === 1 ? files[0].name : files.length ? `${files.length} files selected` : 'Click to select files or a folder'}
+                {files.length === 1 ? files[0].name : files.length ? `${files.length} files selected` : 'Click to select PDF/DOCX files'}
               </p>
-              <p className="text-[10px] text-slate-500 mt-1">Max 25MB · PDF/DOCX parsing + chunking</p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Single or multiple · max 25MB each · empty or placeholder files are rejected
+              </p>
               <input
                 type="file"
-                accept=".pdf,.docx,.txt,.md,.csv"
+                accept=".pdf,.docx"
                 multiple
-                {...({ webkitdirectory: '' } as React.InputHTMLAttributes<HTMLInputElement>)}
                 className="hidden"
                 onChange={e => {
                   const selected = Array.from(e.target.files ?? []);
