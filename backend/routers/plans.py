@@ -10,6 +10,7 @@ from genai_pipeline.generator import GenerationError, generate_onboarding_plan
 from genai_pipeline.schema_validator import validate_genai_payload
 from hallucination_checks.detector import flag_unsupported
 from python_validation.engine import validate_plan
+from python_validation.validation_context import build_context
 from schemas.models import GeneratePlanRequest, ReviewDecision, ToggleTaskRequest
 from security.auth import get_current_user, require_admin
 
@@ -141,13 +142,10 @@ def _fetch_plan_row(sb, plan_id: str | int) -> dict:
 
 
 def _run_validation(sb, plan: dict, role_title: str):
-    reqs = _normalize_reqs(sb.table("role_requirements").select("*").execute().data or [])
-    docs = sb.table("documents").select("document_id,is_active,is_quarantined").execute().data or []
-    active_ids = {
-        d["document_id"]
-        for d in docs
-        if d.get("is_active", True) and not d.get("is_quarantined", False)
-    }
+    # Build the trusted context once (batched ground-truth load — SRS §33/§40).
+    context = build_context(role_title, sb=sb)
+    reqs = _normalize_reqs(list(context.all_requirements))
+    active_ids = set(context.active_document_ids)
 
     plan_n = _normalize_plan(plan)
     report = validate_plan(plan_n, reqs, active_ids, role_title=role_title)

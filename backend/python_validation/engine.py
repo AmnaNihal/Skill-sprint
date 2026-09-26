@@ -2,6 +2,9 @@
 from dataclasses import dataclass, field, asdict
 from typing import Any
 
+from python_validation import scoring
+from python_validation.status_engine import report_final_status
+
 VALID_STATUSES = [
     "Verified",
     "Verified with Warning",
@@ -46,6 +49,8 @@ class ValidationReport:
     coverage_score: float = 0.0
     traceability_score: float = 0.0
     consistency_score: float = 0.0
+    outdated_sources: list[str] = field(default_factory=list)
+    schema_errors: list[str] = field(default_factory=list)
     verification_status: str = "Manual Review Required"
 
     def dict(self) -> dict[str, Any]:
@@ -362,37 +367,19 @@ def validate_plan(
             )
         )
 
-    # Scores
-    report.coverage_score = round(
-        (report.mandatory_covered / report.mandatory_total * 100) if report.mandatory_total else 100.0, 2
-    )
-    report.traceability_score = round((valid_items / report.total_generated_items) * 100, 2)
+    # Scores (formulas live in python_validation.scoring — single source)
+    report.coverage_score = scoring.coverage_score(report.mandatory_covered, report.mandatory_total)
+    report.traceability_score = scoring.traceability_score(valid_items, report.total_generated_items)
 
     # Requirement consistency: matched findings / total requirement findings
     req_findings = [f for f in report.findings if f.field_name in ("mandatory_coverage", "optional_coverage", "requirement_id")]
-    if req_findings:
-        matches = sum(1 for f in req_findings if f.result == "Match")
-        report.consistency_score = round(matches / len(req_findings) * 100, 2)
-    else:
-        report.consistency_score = 100.0
+    matches = sum(1 for f in req_findings if f.result == "Match")
+    report.consistency_score = scoring.consistency_score(matches, len(req_findings))
 
-    # Final verification status (SRS Step 47)
-    if report.contradictions:
-        report.verification_status = "Contradiction Detected"
-    elif report.missing_requirements:
-        report.verification_status = "Incomplete" if report.coverage_score < 100 else "Partially Verified"
-    elif report.unsupported_requirements or report.hallucinations:
-        report.verification_status = "Unsupported"
-    elif report.duplicates or report.sequence_issues:
-        report.verification_status = "Verified with Warning"
-    elif report.coverage_score >= 100 and report.traceability_score >= 100:
-        report.verification_status = "Verified"
-    elif report.coverage_score >= 100 and report.traceability_score >= 90:
-        report.verification_status = "Verified with Warning"
-    else:
-        report.verification_status = "Manual Review Required"
+    # Final verification status — decided ONLY in python_validation.status_engine.
+    report.verification_status = report_final_status(report)
 
-    # Map Incomplete to allowed label for DB check constraint if needed
+    # Persistable label (SRS lists "Partially Verified / Incomplete" as one concept).
     if report.verification_status == "Incomplete":
         report.verification_status = "Partially Verified"
 

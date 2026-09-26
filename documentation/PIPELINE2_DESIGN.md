@@ -363,3 +363,35 @@ final_status = Incomplete (→ Manual Review Required)   # never "Verified"
 ---
 
 **Awaiting approval to implement phase-by-phase (Phase 1 → Phase 11).**
+
+---
+
+## Implementation progress
+
+Legend: ✅ done · 🟡 partial · ⏳ pending
+
+| Phase | Scope | Status |
+|---|---|---|
+| 1 | Pydantic result models, scoring, status engine, exceptions | ✅ |
+| 2 | ValidationContext + batch builder; wired into `_run_validation` | ✅ |
+| 3 | Schema + requirement validators split into own modules | ⏳ (logic exists inside `engine.py`) |
+| 4 | Coverage / missing / unsupported as dedicated validators + `RequirementResult` wiring | 🟡 (logic exists; models added) |
+| 5 | Source + version (Outdated Source) validators | 🟡 (source exists; explicit outdated-version check pending) |
+| 6 | Role / checklist / task / assessment validators | 🟡 (role/sequence exist; checklist/task/assessment modules pending) |
+| 7 | Prerequisite + sequence modules | 🟡 (logic exists in `engine.py`) |
+| 8 | Contradiction + precedence + duplicate modules | 🟡 (contradiction/duplicate exist; precedence wired via `policy_management`) |
+| 9 | Comparison service + field comparator models | 🟡 (`comparison_engine/comparator.py` exists; `field_comparator`/models pending) |
+| 10 | Manual review + override + audit constants | 🟡 (review/override exist; audit constants pending) |
+| 11 | Tests + reports + docs | 🟡 (46 tests passing; Pipeline 2 design doc added) |
+
+**Added this round**
+- `python_validation/scoring.py` — coverage/traceability/consistency formulas (single source)
+- `python_validation/status_engine.py` — `determine_final_status` (single source of truth)
+- `python_validation/result_models.py` — Pydantic result models + report→result converter (ignores plan-supplied status/score)
+- `python_validation/validation_context.py` — `ValidationContext` + batched `build_context`
+- `python_validation/exceptions.py`
+- `engine.py` now delegates scoring + final status; `routers/plans._run_validation` uses `build_context`
+- Tests: `tests/test_pipeline2_core.py` (scoring, status decisions, result conversion, context builder)
+
+**Backward compatibility:** `validate_plan(...)` signature, `ValidationReport`/`ValidationFinding`, and all
+API responses unchanged; existing tests remain green (46 passing).
