@@ -203,6 +203,7 @@ schema validity, precedence, supplementing, and generation consistency.
 - [`documentation/SECURITY_TESTING_REPORT.md`](documentation/SECURITY_TESTING_REPORT.md) — security & prompt injection
 - [`documentation/SUBMISSION_CHECKLIST.md`](documentation/SUBMISSION_CHECKLIST.md) — final deliverables
 - [`documentation/MANUAL_TESTING.md`](documentation/MANUAL_TESTING.md) — step-by-step manual test guide
+- [`documentation/ARCHITECTURE_AND_TRACEABILITY.md`](documentation/ARCHITECTURE_AND_TRACEABILITY.md) — architecture, requirements traceability matrix, checklist
 - [`AI_USAGE.md`](AI_USAGE.md) — AI usage declaration
 
 ---
