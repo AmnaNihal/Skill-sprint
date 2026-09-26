@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { api } from '../../lib/api';
+import { api, ApiError } from '../../lib/api';
 import { X, Upload, FileText } from 'lucide-react';
 import type { DocumentCategory } from '../../types';
 
@@ -27,6 +27,8 @@ export const UploadDocModal: React.FC = () => {
     try {
       let imported = 0;
       let requirements = 0;
+      let duplicates = 0;
+      let rejected = 0;
       const failures: string[] = [];
 
       for (const file of files) {
@@ -64,14 +66,30 @@ export const UploadDocModal: React.FC = () => {
             addToast(`${res.id} quarantined: ${res.injection_flags.join(', ')}`, 'error');
           }
         } catch (err) {
-          failures.push(`${file.name}: ${err instanceof Error ? err.message : 'upload failed'}`);
+          const status = err instanceof ApiError ? err.status : 0;
+          const message = err instanceof Error ? err.message : 'upload failed';
+          if (status === 409) {
+            // Already stored (same content) — treat as skipped, not a failure.
+            duplicates += 1;
+          } else if (status === 400) {
+            // Rejected because empty / placeholder / invalid — show the reason.
+            rejected += 1;
+            addToast(`${file.name}: ${message}`, 'error');
+          } else {
+            failures.push(`${file.name}: ${message}`);
+          }
         }
       }
 
-      addToast(`${imported}/${files.length} documents processed: ${requirements} requirements extracted`, imported ? 'success' : 'error');
-      if (failures.length) addToast(`${failures.length} file(s) failed. See browser console.`, 'error');
-      if (failures.length) console.error('Bulk upload failures', failures);
-      if (!failures.length) setUploadModalOpen(false);
+      const parts = [`${imported}/${files.length} processed`];
+      if (duplicates) parts.push(`${duplicates} duplicate skipped`);
+      if (rejected) parts.push(`${rejected} rejected`);
+      addToast(`${parts.join(' · ')} · ${requirements} requirements extracted`, imported ? 'success' : 'info');
+      if (failures.length) {
+        addToast(`${failures.length} file(s) failed`, 'error');
+        console.error('Bulk upload failures', failures);
+      }
+      if (!failures.length && !rejected) setUploadModalOpen(false);
       setTitle('');
       setTags('');
       setFiles([]);
