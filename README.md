@@ -166,7 +166,8 @@ See [`documentation/EXECUTION.md`](documentation/EXECUTION.md) for the end-to-en
 |---|---|---|
 | POST | `/auth/login` | JWT login |
 | GET | `/documents` | List documents |
-| POST | `/documents/upload` | Upload + parse + chunk + extract requirements (AI); rejects empty/placeholder files |
+| POST | `/documents/inspect` | Pre-flight: Python extract + AI gate + requirement preview (auto-fill, no DB write) |
+| POST | `/documents/upload` | Upload + parse + chunk + extract requirements (AI); rejects empty/placeholder/non-company files |
 | GET | `/documents/{id}/chunks` | Source chunks (traceability) |
 | GET | `/requirements` | Role Requirement Matrix |
 | GET/POST | `/employees` | List / create employee profiles |

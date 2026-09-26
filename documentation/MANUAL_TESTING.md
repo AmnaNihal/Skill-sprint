@@ -54,6 +54,9 @@ Invoke-RestMethod -Uri http://127.0.0.1:8000/auth/me -Headers $h
 | D6 | Upload an empty/blank PDF or DOCX | Rejected: "document has insufficient content" — nothing created | |
 | D7 | Upload a file containing "Lorem ipsum…" | Rejected: "lorem ipsum placeholder text" — nothing created | |
 | D8 | Select multiple PDF/DOCX files at once | Each processed; folder upload not offered | |
+| D9 | Select a valid company file | Processing panel appears immediately: type, category, dept, version, sections/chunks, AI requirement count + preview; form auto-fills | |
+| D10 | Select a lorem / generic / non-company file | Marked **Rejected** with reason; ingest button disabled for it | |
+| D11 | Click ingest with only rejected files | Blocked: "No verified company documents to ingest" | |
 
 ```powershell
 Invoke-RestMethod -Uri http://127.0.0.1:8000/documents -Headers $h | Select-Object id,title,status

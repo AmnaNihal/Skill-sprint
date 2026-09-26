@@ -31,6 +31,25 @@ def test_lorem_ipsum_rejected():
         ensure_content_quality(text)
 
 
+def test_lorem_with_pdf_newlines_rejected():
+    # PDF extraction frequently splits words across lines/spaces.
+    text = "Lorem\nipsum dolor\nsit amet,\nconsectetur  adipiscing\nelit sed do eiusmod tempor incididunt."
+    with pytest.raises(DocumentValidationError):
+        ensure_content_quality(text)
+
+
+def test_long_lorem_document_rejected():
+    paragraph = (
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor "
+        "incididunt ut labore et dolore magna aliqua. "
+    )
+    text = paragraph * 6  # long document, many words, still placeholder content
+    issues = find_quality_issues(text)
+    assert any("lorem" in i.lower() for i in issues)
+    with pytest.raises(DocumentValidationError):
+        ensure_content_quality(text)
+
+
 def test_placeholder_rejected():
     text = "Company policy placeholder. TBD TBD insert text here xxx placeholder sample text repeated."
     with pytest.raises(DocumentValidationError):

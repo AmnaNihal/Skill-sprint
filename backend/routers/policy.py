@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from database.supabase_client import get_supabase
 from document_processing.chunker import chunk_document
 from document_processing.parser import DocumentValidationError, parse_document
+from document_validation.ai_document_gate import assess_company_document
 from document_validation.content_quality import ensure_content_quality
 from genai_pipeline.generator import (
     GenerationError,
@@ -66,6 +67,13 @@ async def upload_version(
         ensure_content_quality(parsed.full_text)
     except DocumentValidationError as e:
         raise HTTPException(400, str(e))
+
+    gate = assess_company_document(parsed.full_text, title or document_id)
+    if not gate.get("accepted"):
+        raise HTTPException(
+            400,
+            f"Rejected: not a valid company document ({gate.get('reason') or 'insufficient company content'})",
+        )
 
     previous = sb.table("documents").select("*").eq("document_id", document_id).execute().data or []
     previous_versions = sorted({str(d.get("version")) for d in previous})

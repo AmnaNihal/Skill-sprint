@@ -29,7 +29,10 @@ export type DocumentCategory =
   | 'Security'
   | 'DevOps'
   | 'Data'
-  | 'Company Policy';
+  | 'Company Policy'
+  | 'Human Resources'
+  | 'Compliance'
+  | 'General';
 
 export type RequirementCategory =
   | 'Architecture'

@@ -7,7 +7,8 @@ from config.settings import get_settings
 from database.supabase_client import get_supabase
 from document_processing.chunker import chunk_document
 from document_processing.parser import DocumentValidationError, parse_document
-from document_validation.content_quality import ensure_content_quality
+from document_validation.ai_document_gate import assess_company_document
+from document_validation.content_quality import ensure_content_quality, find_quality_issues
 from document_validation.metadata import validate_metadata
 from genai_pipeline.generator import detect_injection
 from role_matrix.matrix import extract_requirements, extract_requirements_with_ai
@@ -83,6 +84,75 @@ def list_documents(user: dict = Depends(get_current_user)):
     return out
 
 
+@router.post("/inspect")
+async def inspect_document(
+    file: UploadFile = File(...),
+    user: dict = Depends(require_admin),
+):
+    """Pre-flight: Python extract + AI gate + AI requirement preview. Persists nothing.
+
+    Lets the UI show immediate processing results and auto-fill metadata before ingestion.
+    """
+    sb = get_supabase()
+    settings = get_settings()
+    data = await file.read()
+    filename = file.filename or "file"
+
+    try:
+        parsed = parse_document(filename, data, max_mb=settings.max_file_size_mb)
+    except DocumentValidationError as e:
+        return {"filename": filename, "accepted": False, "stage": "parse", "reason": str(e)}
+
+    quality_issues = find_quality_issues(parsed.full_text)
+    gate = assess_company_document(parsed.full_text, parsed.title or filename)
+    if quality_issues or not gate.get("accepted"):
+        return {
+            "filename": filename,
+            "accepted": False,
+            "stage": "quality",
+            "reason": "; ".join(quality_issues) or gate.get("reason") or "not a valid company document",
+            "gate": gate,
+        }
+
+    role_hints = sorted(
+        {
+            row.get("role")
+            for row in (sb.table("role_requirements").select("role").execute().data or [])
+            if row.get("role")
+        }
+    )
+    try:
+        reqs, extraction_meta = extract_requirements_with_ai(
+            "PREVIEW", parsed.title or filename, parsed.sections, role_hints=role_hints[:15]
+        )
+    except Exception as e:
+        reqs = extract_requirements("PREVIEW", parsed.title or filename, parsed.sections, role_hints=role_hints[:15])
+        extraction_meta = {"provider": "deterministic-fallback", "reason": str(e)[:300]}
+
+    chunks = chunk_document(parsed, "PREVIEW")
+    injection_flags = detect_injection(parsed.full_text)
+
+    return {
+        "filename": filename,
+        "accepted": True,
+        "stage": "ok",
+        "gate": gate,
+        "suggested": {
+            "title": gate.get("title") or parsed.title or filename.rsplit(".", 1)[0],
+            "category": gate.get("category") or "General",
+            "department": gate.get("department") or "",
+            "version": gate.get("version") or "1.0",
+            "role_hints": sorted({r.get("role_title") for r in reqs if r.get("role_title")}),
+        },
+        "chunks": len(chunks),
+        "sections": len(parsed.sections),
+        "requirements_count": len(reqs),
+        "requirements_preview": reqs[:20],
+        "injection_flags": injection_flags,
+        "extraction": extraction_meta,
+    }
+
+
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
@@ -111,6 +181,15 @@ async def upload_document(
     except DocumentValidationError as e:
         raise HTTPException(400, str(e))
 
+    # AI intake gate: only genuine company documents proceed.
+    doc_title = title or parsed.title or filename
+    gate = assess_company_document(parsed.full_text, doc_title)
+    if not gate.get("accepted"):
+        raise HTTPException(
+            400,
+            f"Rejected: not a valid company document ({gate.get('reason') or 'insufficient company content'})",
+        )
+
     chash = parsed.content_hash
     dup = sb.table("documents").select("id,document_id").eq("content_hash", chash).limit(1).execute()
     if dup.data:
@@ -126,7 +205,6 @@ async def upload_document(
         n += 1
         doc_id = f"{base_id}-{n}"
 
-    doc_title = title or parsed.title or filename
     doc_row = {
         "document_id": doc_id,
         "title": doc_title,
@@ -223,6 +301,7 @@ async def upload_document(
         "sections": len(parsed.sections),
         "requirements_extracted": len(req_rows),
         "requirement_extraction": extraction_meta,
+        "intake_gate": gate,
         "warnings": meta_warnings,
         "injection_flags": injection_flags,
         "status": "Quarantined" if injection_flags else "Approved",
