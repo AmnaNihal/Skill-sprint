@@ -207,6 +207,7 @@ schema validity, precedence, supplementing, and generation consistency.
 - [`documentation/SUBMISSION_CHECKLIST.md`](documentation/SUBMISSION_CHECKLIST.md) — final deliverables
 - [`documentation/MANUAL_TESTING.md`](documentation/MANUAL_TESTING.md) — step-by-step manual test guide
 - [`documentation/ARCHITECTURE_AND_TRACEABILITY.md`](documentation/ARCHITECTURE_AND_TRACEABILITY.md) — architecture, requirements traceability matrix, checklist
+- [`documentation/PIPELINE2_DESIGN.md`](documentation/PIPELINE2_DESIGN.md) — Pipeline 2 (Python validation) design
 - [`AI_USAGE.md`](AI_USAGE.md) — AI usage declaration
 
 ---
