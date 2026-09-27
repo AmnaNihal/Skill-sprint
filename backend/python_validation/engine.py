@@ -4,6 +4,7 @@ from typing import Any
 
 from python_validation import scoring
 from python_validation.status_engine import report_final_status
+from python_validation.validators import requirement_validator, source_validator
 
 VALID_STATUSES = [
     "Verified",
@@ -162,98 +163,31 @@ def validate_plan(
     mandatory_reqs = [r for r in applicable if r.get("mandatory")]
     report.mandatory_total = len(mandatory_reqs)
 
-    items = _plan_items(plan)
+    items = requirement_validator.plan_items(plan)
     report.total_generated_items = len(items)
 
-    covered_req_ids: set[str] = set()
-    used_sources: set[str] = set()
-    for it in items:
-        covered_req_ids |= it["requirement_ids"]
-        if it["source_document_id"]:
-            used_sources.add(it["source_document_id"])
+    covered_req_ids, used_sources = requirement_validator.collect_covered_ids(items)
     report.source_ids_used = sorted(used_sources)
 
-    # 1) Mandatory coverage
-    for r in mandatory_reqs:
-        rid = r.get("id") or r.get("requirement_id")
-        if rid in covered_req_ids:
-            report.mandatory_covered += 1
-            report.findings.append(
-                ValidationFinding(
-                    requirement_id=rid,
-                    field_name="mandatory_coverage",
-                    genai_value="Covered",
-                    python_value="Required",
-                    result="Match",
-                    validation_status="Verified",
-                    detail=f"Mandatory requirement covered: {r.get('title','')}",
-                )
-            )
-        else:
-            report.missing_requirements.append(rid)
-            report.findings.append(
-                ValidationFinding(
-                    requirement_id=rid,
-                    field_name="mandatory_coverage",
-                    genai_value="Missing",
-                    python_value="Required",
-                    result="Missing",
-                    validation_status="Requirement Missing",
-                    detail=f"Mandatory requirement not found in plan: {r.get('title','')}",
-                )
-            )
+    # 1) Mandatory + optional coverage
+    total, covered, missing, coverage_findings = requirement_validator.evaluate_mandatory_coverage(
+        mandatory_reqs, covered_req_ids
+    )
+    report.mandatory_total = total
+    report.mandatory_covered = covered
+    report.missing_requirements.extend(missing)
+    for finding in coverage_findings + requirement_validator.evaluate_optional_coverage(applicable, covered_req_ids):
+        report.findings.append(ValidationFinding(**finding))
 
-    # Optional/non-mandatory requirements for consistency score
-    for r in applicable:
-        if r.get("mandatory"):
-            continue
-        rid = r.get("id") or r.get("requirement_id")
-        present = rid in covered_req_ids
-        report.findings.append(
-            ValidationFinding(
-                requirement_id=rid,
-                field_name="optional_coverage",
-                genai_value="Covered" if present else "Not covered",
-                python_value="Optional",
-                result="Match",
-                validation_status="Verified",
-                detail="Optional requirement status recorded",
-            )
-        )
-
-    # 2) Source traceability
-    valid_items = 0
-    for it in items:
-        sid = it["source_document_id"]
-        if not sid:
-            report.findings.append(
-                ValidationFinding(
-                    requirement_id=str(it.get("requirement_ids") or "-"),
-                    field_name="source_traceability",
-                    genai_value="(none)",
-                    python_value="source_document_id required",
-                    result="Unsupported",
-                    validation_status="Source Support Missing",
-                    detail=f"{it['kind']} has no source: {it.get('title')}",
-                )
-            )
-            report.hallucinations.append(f"{it['kind']}: {it.get('title')} (no source)")
-        elif active_document_ids and sid not in active_document_ids:
-            report.findings.append(
-                ValidationFinding(
-                    requirement_id=str(it.get("requirement_ids") or "-"),
-                    field_name="source_validity",
-                    genai_value=sid,
-                    python_value="active document required",
-                    result="Mismatch",
-                    validation_status="Outdated Source",
-                    detail=f"{it['kind']} cites unknown/inactive doc {sid}",
-                )
-            )
-            report.unsupported_requirements.append(str(it.get("requirement_ids") or it.get("title")))
-        else:
-            valid_items += 1
+    # 2) Source traceability + validity
+    valid_items, source_findings, hallucinations, unsupported_sources = source_validator.validate_sources(
+        items, active_document_ids
+    )
     report.traceable_items = valid_items
+    report.hallucinations.extend(hallucinations)
+    report.unsupported_requirements.extend(unsupported_sources)
+    for finding in source_findings:
+        report.findings.append(ValidationFinding(**finding))
     report.total_generated_items = max(1, len(items))
 
     # 3) Unsupported generated requirements (items claiming req ids not in matrix)
@@ -261,21 +195,10 @@ def validate_plan(
         (r.get("requirement_id") or r.get("id"))
         for r in ground_truth_requirements
     }
-    for it in items:
-        for rid in it["requirement_ids"]:
-            if rid and matrix_ids and rid not in matrix_ids:
-                report.unsupported_requirements.append(rid)
-                report.findings.append(
-                    ValidationFinding(
-                        requirement_id=rid,
-                        field_name="requirement_id",
-                        genai_value=rid,
-                        python_value="Not in Role Requirement Matrix",
-                        result="Unsupported",
-                        validation_status="Unsupported Requirement",
-                        detail=f"Generated req id not in matrix: {rid}",
-                    )
-                )
+    unsupported, unsupported_findings = requirement_validator.evaluate_unsupported(items, matrix_ids)
+    report.unsupported_requirements.extend(unsupported)
+    for finding in unsupported_findings:
+        report.findings.append(ValidationFinding(**finding))
 
     # 4) Role relevance
     from python_validation.validators.role_validator import validate_roles

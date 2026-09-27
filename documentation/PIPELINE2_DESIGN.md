@@ -375,13 +375,13 @@ Legend: ✅ done · 🟡 partial · ⏳ pending
 | 1 | Pydantic result models, scoring, status engine, exceptions | ✅ |
 | 2 | ValidationContext + batch builder; wired into `_run_validation` | ✅ |
 | 3 | Schema + requirement validators split into own modules | ✅ (`validators/schema_validator.py`; requirement logic in `engine.py`) |
-| 4 | Coverage / missing / unsupported as dedicated validators + `RequirementResult` wiring | 🟡 (logic + `RequirementResult` model present) |
+| 4 | Coverage / missing / unsupported as dedicated validators + `RequirementResult` wiring | ✅ (`validators/requirement_validator.py`, `validators/source_validator.py`, `result_models.py`) |
 | 5 | Source + version (Outdated Source) validators | ✅ (`validators/version_validator.py`; superseded filter enforced) |
 | 6 | Role / checklist / task / assessment / quiz validators | ✅ (`validators/role_validator.py`, `validators/structure_validators.py`) |
 | 7 | Prerequisite + sequence modules | ✅ (`validators/sequence_validator.py`) |
 | 8 | Contradiction + precedence + duplicate modules | ✅ (`validators/contradiction_validator.py`, `validators/duplicate_validator.py`, precedence via `policy_management`) |
 | 9 | Comparison service + field comparator models | ✅ (`comparison_engine/field_comparator.py`) |
-| 10 | Manual review + override + audit constants | 🟡 (review/override exist; audit constants pending) |
+| 10 | Manual review + override + audit constants | ✅ (`python_validation/audit.py`; override appended to `payload.validation.audit`) |
 | 11 | Tests + reports + docs | ✅ (54 tests; validation + comparison reports; design + evidence docs) |
 
 **Added — Phase 1–2**

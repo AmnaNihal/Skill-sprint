@@ -62,7 +62,7 @@ python tools\export_comparison_report.py      # reports/comparison_report.csv/.j
 ```
 
 ## Latest snapshot
-- Tests: **54 passing**
+- Tests: **57 passing**
 - Validation report: 56 plans, 43 Verified
 - Comparison report: 4783 requirement-level rows
 - 10 role plans revalidate **Verified, 100% coverage, 0 outdated**

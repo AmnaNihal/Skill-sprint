@@ -9,6 +9,7 @@ from genai_pipeline.consistency import compare_generations
 from genai_pipeline.generator import GenerationError, generate_onboarding_plan
 from genai_pipeline.schema_validator import validate_genai_payload
 from hallucination_checks.detector import flag_unsupported
+from python_validation.audit import REVIEWER_OVERRIDE, audit_events_from_report, build_audit_entry
 from python_validation.engine import validate_plan
 from python_validation.validation_context import build_context
 from schemas.models import GeneratePlanRequest, ReviewDecision, ToggleTaskRequest
@@ -286,6 +287,7 @@ def generate_plan(payload: GeneratePlanRequest, user: dict = Depends(require_adm
         "sequence_issues": report.sequence_issues,
         "hallucinations": report.hallucinations,
         "outdated_sources": report.outdated_sources,
+        "audit": audit_events_from_report(report),
         "schema_errors": schema_errors,
         "validated_at": _now(),
     }
@@ -342,6 +344,7 @@ def generate_plan(payload: GeneratePlanRequest, user: dict = Depends(require_adm
         "sequence_issues": report.sequence_issues,
         "hallucinations": report.hallucinations,
         "outdated_sources": report.outdated_sources,
+        "audit": audit_events_from_report(report),
         "schema_errors": schema_errors,
         "generation_meta": meta,
         "comparison": comparison[:200],
@@ -409,6 +412,7 @@ def revalidate(plan_id: str, user: dict = Depends(require_admin)):
         "sequence_issues": report.sequence_issues,
         "hallucinations": report.hallucinations,
         "outdated_sources": report.outdated_sources,
+        "audit": audit_events_from_report(report),
         "schema_errors": [],
         "validated_at": _now(),
     }
@@ -422,6 +426,7 @@ def revalidate(plan_id: str, user: dict = Depends(require_admin)):
         "sequence_issues": report.sequence_issues,
         "hallucinations": report.hallucinations,
         "outdated_sources": report.outdated_sources,
+        "audit": audit_events_from_report(report),
     }
 
 
@@ -511,6 +516,18 @@ def review_plan(payload: ReviewDecision, user: dict = Depends(require_admin)):
         }
     )
     validation["reviews"] = reviews
+    original_status = (validation.get("summary") or {}).get("verification_status") or ""
+    audit = list(validation.get("audit") or [])
+    audit.append(
+        build_audit_entry(
+            REVIEWER_OVERRIDE,
+            plan_id=row["id"],
+            actor=user.get("full_name") or user.get("email") or "",
+            detail=f"original={original_status}; decision={new_status}; comment={payload.comment}",
+            status=new_status,
+        )
+    )
+    validation["audit"] = audit
     pl["validation"] = validation
     sb.table("plans").update({"status": new_status if new_status != "Rejected" else "Rejected", "payload": pl, "updated_at": _now()}).eq("id", row["id"]).execute()
     return {"ok": True, "status": new_status if new_status != "Rejected" else "Rejected"}
