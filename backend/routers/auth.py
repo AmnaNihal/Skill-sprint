@@ -4,20 +4,25 @@ from passlib.hash import bcrypt
 from database.supabase_client import get_supabase
 from schemas.models import LoginRequest, RegisterRequest, UserCreate
 from security.auth import create_access_token, get_current_user, require_admin
-from security.tenancy import is_master, owns_employee, owns_user
+from security.tenancy import is_master, owner_key, owns_employee, owns_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 ALLOWED_ROLES = {"admin", "manager", "reviewer", "learner", "training_manager"}
 
+OWNER_TAG_SUFFIX = "-OWNER"
+
 
 def _public_user(row: dict) -> dict:
+    employee_id = row.get("employee_id")
+    if employee_id and str(employee_id).endswith(OWNER_TAG_SUFFIX):
+        employee_id = None
     return {
         "id": row.get("id"),
         "email": row.get("email"),
         "full_name": row.get("display_name") or "",
         "role": row.get("role") or "learner",
-        "employee_id": row.get("employee_id"),
+        "employee_id": employee_id,
         "is_active": row.get("is_active", True),
         "is_master": is_master({"email": row.get("email")}),
     }
@@ -28,14 +33,13 @@ def me(user: dict = Depends(get_current_user)):
     return {**user, "is_master": is_master(user)}
 
 
-def _company_domain(email: str | None) -> str:
-    email = (email or "").lower()
-    return email.split("@", 1)[1] if "@" in email else ""
-
-
 @router.get("/users")
 def list_users(user: dict = Depends(require_admin)):
-    """List user accounts belonging to the same company (email domain) as the caller."""
+    """List accounts that belong to the caller's company.
+
+    Master administrators see every account. A company administrator (an account created by
+    the master) sees only the accounts it created (linked via an owner tag) plus their own.
+    """
     rows = (
         get_supabase()
         .table("users")
@@ -45,10 +49,7 @@ def list_users(user: dict = Depends(require_admin)):
         .data
         or []
     )
-    domain = _company_domain(user.get("email"))
-    if domain:
-        rows = [r for r in rows if _company_domain(r.get("email")) == domain]
-    return [_public_user(r) for r in rows]
+    return [_public_user(r) for r in rows if owns_user(user, r)]
 
 
 @router.post("/users")
@@ -64,12 +65,18 @@ def create_user(payload: UserCreate, user: dict = Depends(require_admin)):
     existing = sb.table("users").select("id").eq("email", payload.email.lower()).limit(1).execute().data
     if existing:
         raise HTTPException(409, "Email already registered")
+    employee_id = payload.employee_id
+    if not employee_id and not is_master(user):
+        # Tag accounts created by a company administrator so they stay inside that company.
+        key = owner_key(user)
+        if key:
+            employee_id = f"{key}{OWNER_TAG_SUFFIX}"
     row = {
         "email": payload.email.lower(),
         "display_name": payload.full_name or payload.email.split("@")[0],
         "password_hash": bcrypt.hash(payload.password),
         "role": role,
-        "employee_id": payload.employee_id,
+        "employee_id": employee_id,
         "is_active": True,
     }
     try:

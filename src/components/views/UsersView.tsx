@@ -185,6 +185,9 @@ export const UsersView: React.FC = () => {
                       {u.role}
                     </span>
                     {u.is_master && <span className="ml-2 text-[10px] text-purple-300">master</span>}
+                    {u.role === 'admin' && !u.is_master && (
+                      <span className="ml-2 text-[10px] text-indigo-300">company</span>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-xs text-slate-400">
                     {u.employee_id ? (

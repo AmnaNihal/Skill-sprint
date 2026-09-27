@@ -15,12 +15,15 @@ ADMIN_ROLES = {"admin", "manager", "reviewer", "training_manager"}
 def create_access_token(user: dict) -> str:
     settings = get_settings()
     now = datetime.now(timezone.utc)
+    employee_id = user.get("employee_id") or ""
+    if str(employee_id).endswith("-OWNER"):
+        employee_id = ""
     payload = {
         "sub": str(user.get("id")),
         "email": user.get("email") or "",
         "role": user.get("role") or "learner",
         "full_name": user.get("display_name") or "",
-        "employee_id": user.get("employee_id") or "",
+        "employee_id": employee_id,
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
     }
