@@ -271,6 +271,10 @@ def fallback_plan(
                 "estimated_hours": 1,
                 "difficulty": experience_level if experience_level in ("Beginner", "Intermediate", "Advanced") else "Beginner",
                 "learning_objectives": [f"Apply: {snippet}" if snippet else f"Cover {rid}"],
+                "learning_activities": [
+                    f"Review source: {b.get('heading') or rid}",
+                    f"Complete task for {rid}",
+                ],
                 "key_concepts": [r.get("competency") or role_title],
                 "source_document_id": b.get("source_document_id") or r.get("source_document_id") or "",
                 "source_section_id": b.get("source_section_id") or r.get("source_section_id") or "Section-1",
@@ -318,7 +322,16 @@ def fallback_plan(
                         "requirement_id": rid,
                     }
                 ],
-                "checklist": [],
+                "checklist": [
+                    {
+                        "activity": f"Complete {rid}: {snippet or 'requirement activity'}",
+                        "mandatory": bool(r.get("mandatory")),
+                        "due_stage": stage,
+                        "source_document_id": b.get("source_document_id") or r.get("source_document_id") or "",
+                        "responsible_person": "Employee",
+                        "completed": False,
+                    }
+                ],
                 "assessments": [],
             }
         )

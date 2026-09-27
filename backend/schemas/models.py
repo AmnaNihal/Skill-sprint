@@ -164,6 +164,7 @@ class GenChecklistItem(BaseModel):
     due_stage: DueStage = "Week 1"
     source_document_id: str = ""
     responsible_person: str = ""
+    completed: bool = False
 
 
 class GenAssessment(BaseModel):
@@ -190,6 +191,7 @@ class GenModule(BaseModel):
     estimated_hours: float = 1
     difficulty: Difficulty = "Beginner"
     learning_objectives: list[str] = []
+    learning_activities: list[str] = []
     key_concepts: list[str] = []
     source_document_id: str = ""
     source_section_id: str = ""
