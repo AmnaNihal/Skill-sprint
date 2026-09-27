@@ -51,7 +51,7 @@ export interface DocumentItem {
   category: DocumentCategory;
   version: string;
   uploadedAt: string;
-  status: 'Approved' | 'Processing' | 'Draft' | 'Quarantined';
+  status: 'Approved' | 'Processing' | 'Draft' | 'Quarantined' | 'Inactive';
   fileSize: string;
   chunksCount: number;
   chunkCount?: number;

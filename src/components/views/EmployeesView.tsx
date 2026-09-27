@@ -45,6 +45,8 @@ const EMPTY_FORM = {
   experience_level: 'Beginner',
   joining_date: '',
   manager: '',
+  location: '',
+  previous_experience: '',
   training_status: 'Not Started',
 };
 
@@ -125,6 +127,8 @@ export const EmployeesView: React.FC = () => {
       experience_level: e.experience_level || 'Beginner',
       joining_date: e.joining_date || '',
       manager: e.manager || '',
+      location: (e as Employee & { location?: string }).location || '',
+      previous_experience: (e as Employee & { previous_experience?: string }).previous_experience || '',
       training_status: e.training_status || 'Not Started',
     });
     setModalOpen(true);
@@ -488,6 +492,26 @@ export const EmployeesView: React.FC = () => {
                     <option>In Progress</option>
                     <option>Completed</option>
                   </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Location</label>
+                  <input
+                    value={form.location}
+                    onChange={e => setForm({ ...form, location: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                    placeholder="e.g. Karachi / Remote"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Previous experience</label>
+                  <input
+                    value={form.previous_experience}
+                    onChange={e => setForm({ ...form, previous_experience: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                    placeholder="e.g. 2 years support"
+                  />
                 </div>
               </div>
               <div className="pt-3 flex items-center justify-end gap-3 border-t border-purple-900/30">

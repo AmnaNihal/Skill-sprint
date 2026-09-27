@@ -33,6 +33,45 @@ export const MatrixView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [mandatoryOnly, setMandatoryOnly] = useState(false);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [roleForm, setRoleForm] = useState({ title: '', department: '', description: '' });
+  const [creatingRole, setCreatingRole] = useState(false);
+
+  const reload = () => {
+    Promise.all([
+      api.get<ApiRequirement[]>('/requirements'),
+      api.get<{ title: string }[]>('/roles'),
+    ])
+      .then(([reqs, roleRows]) => {
+        setRequirements(reqs);
+        setRoles(['All', ...roleRows.map(r => r.title).filter(Boolean)]);
+      })
+      .catch(() => undefined);
+  };
+
+  const createRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roleForm.title.trim()) {
+      addToast('Role title is required', 'error');
+      return;
+    }
+    setCreatingRole(true);
+    try {
+      await api.post('/roles', {
+        title: roleForm.title.trim(),
+        department: roleForm.department.trim(),
+        description: roleForm.description.trim(),
+      });
+      addToast(`Role "${roleForm.title}" created${roleForm.department ? ` in ${roleForm.department}` : ''}`, 'success');
+      setRoleModalOpen(false);
+      setRoleForm({ title: '', department: '', description: '' });
+      reload();
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Failed to create role', 'error');
+    } finally {
+      setCreatingRole(false);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -117,13 +156,22 @@ export const MatrixView: React.FC = () => {
             Ground-truth matrix extracted from uploaded documents — used by Pipeline 2 validation.
           </p>
         </div>
-        <button
-          onClick={() => setAddReqModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-purple-600/30 transition ring-1 ring-purple-400/30"
-        >
-          <Plus className="w-4 h-4" />
-          Add Requirement
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setRoleForm({ title: '', department: '', description: '' }); setRoleModalOpen(true); }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-purple-900/40 text-sm font-semibold transition"
+          >
+            <Building2 className="w-4 h-4 text-purple-400" />
+            Create Role / Department
+          </button>
+          <button
+            onClick={() => setAddReqModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-purple-600/30 transition ring-1 ring-purple-400/30"
+          >
+            <Plus className="w-4 h-4" />
+            Add Requirement
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 p-4 space-y-4">
@@ -305,6 +353,59 @@ export const MatrixView: React.FC = () => {
           <p className="text-2xl font-bold text-purple-400 mt-1">{Math.max(0, roles.length - 1)}</p>
         </div>
       </div>
+
+      {roleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-purple-800/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-5 border-b border-purple-900/30 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400"><Building2 className="w-5 h-5" /></div>
+                <h3 className="font-bold text-white text-base">Create Role &amp; Department</h3>
+              </div>
+              <button onClick={() => setRoleModalOpen(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">✕</button>
+            </div>
+            <form onSubmit={createRole} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Role title</label>
+                <input
+                  value={roleForm.title}
+                  onChange={e => setRoleForm({ ...roleForm, title: e.target.value })}
+                  placeholder="e.g. Data Analyst"
+                  required
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Department</label>
+                <input
+                  value={roleForm.department}
+                  onChange={e => setRoleForm({ ...roleForm, department: e.target.value })}
+                  placeholder="e.g. Data & Analytics (type a new name to create it)"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Description (optional)</label>
+                <textarea
+                  value={roleForm.description}
+                  onChange={e => setRoleForm({ ...roleForm, description: e.target.value })}
+                  rows={2}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Creates the role as a baseline matrix entry. A new department is created when you type a name that does not exist yet.
+              </p>
+              <div className="pt-3 flex items-center justify-end gap-3 border-t border-purple-900/30">
+                <button type="button" onClick={() => setRoleModalOpen(false)} className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white">Cancel</button>
+                <button type="submit" disabled={creatingRole} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold disabled:opacity-50">
+                  {creatingRole ? 'Creating…' : 'Create Role'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

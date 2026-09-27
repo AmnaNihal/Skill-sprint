@@ -177,7 +177,12 @@ export const AddRequirementModal: React.FC = () => {
               </label>
               <select
                 value={requirementType}
-                onChange={e => setRequirementType(e.target.value)}
+                onChange={e => {
+                  const t = e.target.value;
+                  setRequirementType(t);
+                  // Must* types are mandatory; Recommended/Optional/Not Applicable are informational.
+                  setMandatory(t.startsWith('Must'));
+                }}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
               >
                 <option value="Must Know">Must Know</option>
@@ -186,6 +191,7 @@ export const AddRequirementModal: React.FC = () => {
                 <option value="Must Acknowledge">Must Acknowledge</option>
                 <option value="Recommended">Recommended</option>
                 <option value="Optional">Optional</option>
+                <option value="Not Applicable">Not Applicable</option>
               </select>
             </div>
             <div className="flex items-center gap-2 pb-1">

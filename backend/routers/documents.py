@@ -310,6 +310,35 @@ async def upload_document(
     }
 
 
+@router.get("/{doc_id}/versions")
+def get_versions(doc_id: str, user: dict = Depends(get_current_user)):
+    """Document version control: distinguish the active version from obsolete versions."""
+    if not can_access(user, doc_id):
+        raise HTTPException(403, "You can only access your own documents")
+    rows = (
+        get_supabase()
+        .table("documents")
+        .select("version,is_active,effective_date,expiry_date,filename,created_at")
+        .eq("document_id", doc_id)
+        .order("version", desc=True)
+        .execute()
+        .data
+        or []
+    )
+    return [
+        {
+            "version": r.get("version") or "1.0",
+            "active": bool(r.get("is_active")),
+            "status": "Active" if r.get("is_active") else "Obsolete",
+            "effective_date": r.get("effective_date"),
+            "expiry_date": r.get("expiry_date"),
+            "filename": r.get("filename"),
+            "created_at": r.get("created_at"),
+        }
+        for r in rows
+    ]
+
+
 @router.get("/{doc_id}/chunks")
 def get_chunks(doc_id: str, user: dict = Depends(get_current_user)):
     if not can_access(user, doc_id):

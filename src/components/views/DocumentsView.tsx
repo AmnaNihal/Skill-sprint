@@ -2,9 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import {
-  FileText, Upload, CheckCircle2, Search, Sparkles, AlertTriangle
+  FileText, Upload, CheckCircle2, Search, Sparkles, AlertTriangle, History, X
 } from 'lucide-react';
 import type { DocumentItem, PipelineStep } from '../../types';
+
+interface DocVersion {
+  version: string;
+  active: boolean;
+  status: string;
+  effective_date?: string;
+  filename?: string;
+  created_at?: string;
+}
 
 export const DocumentsView: React.FC = () => {
   const { setUploadModalOpen, addToast } = useApp();
@@ -12,8 +21,23 @@ export const DocumentsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [historyDoc, setHistoryDoc] = useState<string | null>(null);
+  const [versions, setVersions] = useState<DocVersion[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
 
   const categories = ['All', 'Architecture', 'Security', 'DevOps', 'Data', 'Company Policy', 'General'];
+
+  const openVersions = async (docId: string) => {
+    setHistoryDoc(docId);
+    setVersionsLoading(true);
+    try {
+      setVersions(await api.get<DocVersion[]>(`/documents/${docId}/versions`));
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'Failed to load versions', 'error');
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -129,6 +153,7 @@ export const DocumentsView: React.FC = () => {
                 <th className="px-6 py-4">Doc ID & Title</th>
                 <th className="px-6 py-4">Category</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Version</th>
                 <th className="px-6 py-4">Size / Type</th>
                 <th className="px-6 py-4">Uploaded</th>
               </tr>
@@ -136,14 +161,14 @@ export const DocumentsView: React.FC = () => {
             <tbody className="divide-y divide-purple-900/20">
               {loading && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
+                  <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
                     Loading documents from API…
                   </td>
                 </tr>
               )}
               {!loading && filteredDocs.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center">
+                  <td colSpan={6} className="px-6 py-10 text-center">
                     <AlertTriangle className="w-8 h-8 mx-auto text-amber-400 mb-2" />
                     <p className="text-slate-300 font-semibold">No documents yet</p>
                     <p className="text-xs text-slate-500 mt-1">Upload a PDF/DOCX to run the ingestion pipeline.</p>
@@ -184,11 +209,21 @@ export const DocumentsView: React.FC = () => {
                     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
                       doc.status === 'Quarantined'
                         ? 'text-rose-300 bg-rose-500/10 border-rose-500/30'
-                        : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                        : doc.status === 'Inactive'
+                          ? 'text-amber-300 bg-amber-500/10 border-amber-500/30'
+                          : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
                     }`}>
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      {doc.status}
+                      {doc.status === 'Inactive' ? 'Obsolete' : doc.status}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => openVersions(doc.id)}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-300 hover:text-white bg-slate-800/70 hover:bg-slate-700 px-2.5 py-1 rounded-lg border border-purple-900/40 transition"
+                    >
+                      <History className="w-3.5 h-3.5" /> v{doc.version}
+                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-300">
                     <div>{doc.fileSize || '—'}</div>
@@ -203,6 +238,48 @@ export const DocumentsView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {historyDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-purple-800/50 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+            <div className="p-5 border-b border-purple-900/30 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-white text-base">Version History</h3>
+                <p className="text-xs text-slate-400 font-mono">{historyDoc}</p>
+              </div>
+              <button onClick={() => setHistoryDoc(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3 max-h-96 overflow-y-auto">
+              {versionsLoading && <p className="text-sm text-slate-400">Loading versions…</p>}
+              {!versionsLoading && versions.length === 0 && (
+                <p className="text-sm text-slate-400">No version history available.</p>
+              )}
+              {versions.map(v => (
+                <div key={v.version + (v.created_at || '')} className="flex items-center justify-between gap-3 bg-slate-950/70 border border-purple-900/20 rounded-xl p-4">
+                  <div>
+                    <div className="text-sm font-semibold text-white">Version {v.version}</div>
+                    <div className="text-[11px] text-slate-500">
+                      {v.effective_date ? `Effective ${v.effective_date}` : ''}{v.filename ? ` · ${v.filename}` : ''}
+                    </div>
+                  </div>
+                  <span className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold ${
+                    v.active
+                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                      : 'text-amber-300 bg-amber-500/10 border-amber-500/30'
+                  }`}>
+                    {v.active ? 'Active' : 'Obsolete'}
+                  </span>
+                </div>
+              ))}
+              <p className="text-[11px] text-slate-500 pt-1">
+                Only the active version is used for requirement extraction and plan generation. Obsolete versions are kept for history and audit.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
