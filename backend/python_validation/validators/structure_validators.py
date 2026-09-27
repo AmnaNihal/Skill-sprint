@@ -5,10 +5,21 @@ grant or deny `Verified` — that decision belongs to status_engine (SRS §28 cr
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 STAGES = ["Day 1", "Week 1", "Week 2", "First 30 Days", "First 60 Days", "First 90 Days"]
 DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"]
+
+_STOP = {
+    "the", "a", "an", "of", "and", "or", "to", "in", "on", "for", "is", "are", "be", "with",
+    "must", "should", "all", "this", "that", "as", "by", "from", "which", "what", "when",
+    "where", "who", "how", "not", "you", "your", "it", "its", "at", "into", "than", "then",
+}
+
+
+def _tokens(value: Any) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", str(value or "").lower()) if len(w) > 2 and w not in _STOP}
 
 
 def _finding(req_id: str, field: str, genai: str, python: str, result: str, status: str, detail: str) -> dict:
@@ -111,4 +122,51 @@ def validate_quizzes(plan: dict[str, Any]) -> list[dict]:
                     findings.append(_finding("-", "quiz_answer", str(idx), "valid option index", "Mismatch",
                                              "Manual Review Required", f"Module {mid}: correct_answer index out of range"))
                     break
+    return findings
+
+
+def validate_quiz_answers(plan: dict[str, Any]) -> list[dict]:
+    """Validate quiz correct answers against the module's source context (distractor protection).
+
+    Deterministic heuristic: the correct option must share meaningful terms with the module's
+    requirement/source context. True/False cannot be token-verified and is skipped.
+    """
+    findings: list[dict] = []
+    for module in plan.get("modules") or []:
+        mid = module.get("module_id") or module.get("id") or "?"
+        context = _tokens(" ".join(str(x or "") for x in (
+            module.get("module_title"),
+            module.get("description"),
+            module.get("purpose"),
+            module.get("assessment_topic"),
+            module.get("source_document_id"),
+            module.get("source_section_id"),
+            module.get("requirement_id"),
+        )))
+        for quiz in module.get("quiz") or []:
+            if not isinstance(quiz, dict):
+                continue
+            if (quiz.get("question_type") or "") == "true_false":
+                continue
+            options = quiz.get("options") or []
+            answer = quiz.get("correct_answer") or []
+            if not answer:
+                continue
+            index = answer[0]
+            if not isinstance(index, int) or index < 0 or index >= len(options):
+                continue
+            correct_text = str(options[index])
+            if _tokens(correct_text) & context:
+                continue
+            findings.append(
+                _finding(
+                    str(quiz.get("requirement_id") or "-"),
+                    "quiz_answer_source",
+                    correct_text,
+                    "answer supported by approved source",
+                    "Warning",
+                    "Manual Review Required",
+                    f"Module {mid}: correct answer not supported by module source context",
+                )
+            )
     return findings

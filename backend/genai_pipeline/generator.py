@@ -257,6 +257,165 @@ def fallback_plan(
         rid = r.get("requirement_id") or r.get("id") or f"R{i:03d}"
         mid = f"M{i:03d}"
         snippet = text[:120]
+        src_doc = b.get("source_document_id") or r.get("source_document_id") or ""
+        src_sec = b.get("source_section_id") or r.get("source_section_id") or "Section-1"
+        mandatory = bool(r.get("mandatory"))
+        topic = r.get("assessment_topic") or (r.get("competency") or "")
+
+        procedural = any(
+            k in (text + " " + str(r.get("competency") or "")).lower()
+            for k in (
+                "complaint", "escalation", "incident", "violation", "refund",
+                "security", "process", "workflow", "procedure", "sop", "handling",
+            )
+        )
+
+        tasks = [
+            {
+                "id": f"{mid}-T01",
+                "title": f"Study {rid}",
+                "description": text,
+                "task_type": "Reading",
+                "difficulty": "Beginner",
+                "due_stage": stage,
+                "estimated_minutes": 30,
+                "mandatory": mandatory,
+                "expected_outcome": "Demonstrate understanding of the requirement",
+                "completion_criteria": "Task marked complete",
+                "source_document_id": src_doc,
+                "source_section_id": src_sec,
+                "requirement_id": rid,
+                "scenario": False,
+                "completed": False,
+            }
+        ]
+        if procedural:
+            tasks.append(
+                {
+                    "id": f"{mid}-T02",
+                    "title": f"Scenario: apply {rid}",
+                    "description": f"Scenario: {snippet or 'a realistic situation'} — respond using the approved procedure.",
+                    "task_type": "Scenario",
+                    "difficulty": "Intermediate",
+                    "due_stage": stage,
+                    "estimated_minutes": 45,
+                    "mandatory": mandatory,
+                    "expected_outcome": "Apply the approved process to a realistic situation",
+                    "completion_criteria": "Scenario handled following the approved procedure",
+                    "source_document_id": src_doc,
+                    "source_section_id": src_sec,
+                    "requirement_id": rid,
+                    "scenario": True,
+                    "completed": False,
+                }
+            )
+
+        quiz = [
+            {
+                "id": f"{mid}-Q01",
+                "question": f"Which source governs {rid}? ({snippet or 'policy control'})",
+                "question_type": "multiple_choice",
+                "options": [
+                    f"{src_doc} section {src_sec}",
+                    "Unrelated external blog",
+                    "No source document",
+                    "Personal opinion",
+                ],
+                "correct_answer": [0],
+                "explanation": f"Cited by {rid} from the approved source document.",
+                "difficulty": "Beginner",
+                "source_document_id": src_doc,
+                "source_section_id": src_sec,
+                "requirement_id": rid,
+            },
+            {
+                "id": f"{mid}-Q02",
+                "question": f"True or False: {snippet or rid}",
+                "question_type": "true_false",
+                "options": ["True", "False"],
+                "correct_answer": [0],
+                "explanation": "Supported by the approved source document.",
+                "difficulty": "Beginner",
+                "source_document_id": src_doc,
+                "source_section_id": src_sec,
+                "requirement_id": rid,
+            },
+        ]
+        if procedural:
+            quiz.append(
+                {
+                    "id": f"{mid}-Q03",
+                    "question": f"Scenario: {snippet or rid} — what is the correct action?",
+                    "question_type": "scenario",
+                    "options": [
+                        f"Follow the approved process in {src_doc} section {src_sec}",
+                        "Skip the approved process",
+                    ],
+                    "correct_answer": [0],
+                    "explanation": "The approved source defines the correct action.",
+                    "difficulty": "Intermediate",
+                    "source_document_id": src_doc,
+                    "source_section_id": src_sec,
+                    "requirement_id": rid,
+                }
+            )
+
+        checklist = [
+            {
+                "activity": f"Complete {rid}: {snippet or 'requirement activity'}",
+                "mandatory": mandatory,
+                "due_stage": stage,
+                "source_document_id": src_doc,
+                "responsible_person": "Employee",
+                "completed": False,
+            }
+        ]
+
+        assessments = [
+            {
+                "title": f"Knowledge check: {rid}",
+                "assessment_type": "Knowledge",
+                "topic": topic,
+                "difficulty": "Beginner",
+                "due_stage": stage,
+                "rubric": [],
+                "source_document_id": src_doc,
+                "source_section_id": src_sec,
+            }
+        ]
+        if procedural:
+            assessments.append(
+                {
+                    "title": f"Practical assessment: {rid}",
+                    "assessment_type": "Practical",
+                    "topic": topic,
+                    "difficulty": "Intermediate",
+                    "due_stage": stage,
+                    "rubric": [
+                        {
+                            "criterion": "Follows approved procedure",
+                            "weight": 40,
+                            "expected_performance": "All required steps completed",
+                            "pass_condition": "Pass",
+                        },
+                        {
+                            "criterion": "Applies policy correctly",
+                            "weight": 30,
+                            "expected_performance": "Correct policy applied",
+                            "pass_condition": "Pass",
+                        },
+                        {
+                            "criterion": "Documents the outcome",
+                            "weight": 30,
+                            "expected_performance": "Outcome recorded",
+                            "pass_condition": "Pass",
+                        },
+                    ],
+                    "source_document_id": src_doc,
+                    "source_section_id": src_sec,
+                }
+            )
+
         modules.append(
             {
                 "module_id": mid,
@@ -284,55 +443,10 @@ def fallback_plan(
                 "completion_criteria": "Complete task and pass quiz with >=80%",
                 "requirement_id": rid,
                 "requirement_ids": [rid],
-                "tasks": [
-                    {
-                        "id": f"{mid}-T01",
-                        "title": f"Study {rid}",
-                        "description": text,
-                        "task_type": "Reading",
-                        "difficulty": "Beginner",
-                        "due_stage": stage,
-                        "estimated_minutes": 30,
-                        "mandatory": bool(r.get("mandatory")),
-                        "expected_outcome": "Demonstrate understanding of the requirement",
-                        "completion_criteria": "Task marked complete",
-                        "source_document_id": b.get("source_document_id") or r.get("source_document_id") or "",
-                        "source_section_id": b.get("source_section_id") or r.get("source_section_id") or "Section-1",
-                        "requirement_id": rid,
-                        "scenario": False,
-                        "completed": False,
-                    }
-                ],
-                "quiz": [
-                    {
-                        "id": f"{mid}-Q01",
-                        "question": f"Which source governs {rid}? ({snippet or 'policy control'})",
-                        "question_type": "multiple_choice",
-                        "options": [
-                            f"{b.get('source_document_id') or r.get('source_document_id')} section {b.get('source_section_id')}",
-                            "Unrelated external blog",
-                            "No source document",
-                            "Personal opinion",
-                        ],
-                        "correct_answer": [0],
-                        "explanation": f"Cited by {rid} from source document.",
-                        "difficulty": "Beginner",
-                        "source_document_id": b.get("source_document_id") or r.get("source_document_id") or "",
-                        "source_section_id": b.get("source_section_id") or r.get("source_section_id") or "Section-1",
-                        "requirement_id": rid,
-                    }
-                ],
-                "checklist": [
-                    {
-                        "activity": f"Complete {rid}: {snippet or 'requirement activity'}",
-                        "mandatory": bool(r.get("mandatory")),
-                        "due_stage": stage,
-                        "source_document_id": b.get("source_document_id") or r.get("source_document_id") or "",
-                        "responsible_person": "Employee",
-                        "completed": False,
-                    }
-                ],
-                "assessments": [],
+                "tasks": tasks,
+                "quiz": quiz,
+                "checklist": checklist,
+                "assessments": assessments,
             }
         )
 

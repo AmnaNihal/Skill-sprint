@@ -38,6 +38,8 @@ HARD RULES:
 12. Each task MUST include: title, description, task_type, difficulty, due_stage,
     estimated_minutes, mandatory, expected_outcome, completion_criteria,
     source_document_id, source_section_id, requirement_id, scenario, completed.
+12b. For every process/policy requirement (complaints, escalation, incidents, security,
+    violations, refunds, workflows), include at least one SCENARIO task with scenario=true.
 13. Each module MUST include at least one checklist item with: activity, mandatory,
     due_stage, source_document_id, responsible_person, completed.
 13b. Every module MUST cite source_document_id AND source_section_id from SOURCE_BLOCKS.
@@ -46,7 +48,12 @@ HARD RULES:
     practical tasks, scenarios, quiz topics, and assessments.
 13d. Each quiz MUST include: question, question_type "multiple_choice", at least two
     options, correct_answer as an array of option indexes, explanation, difficulty,
-    source_document_id, source_section_id, requirement_id.
+    source_document_id, source_section_id, requirement_id. Distractors must be plausible
+    but must NOT contradict the source in a misleading way, and the correct answer MUST be
+    supported by the cited source section.
+13e. Support quiz question types: multiple_choice, multiple_response, true_false, scenario.
+13f. Each module MUST include assessments. Practical assessments MUST include a rubric with
+    items of {criterion, weight, expected_performance, pass_condition}.
 14. Keep every string value to 12 words or fewer. Each list may contain only one item
     except quiz options, which must contain exactly two short options.
 

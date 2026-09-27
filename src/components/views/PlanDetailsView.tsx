@@ -559,12 +559,47 @@ export const PlanDetailsView: React.FC = () => {
           </div>
           <div className="space-y-3">
             {(plan.quizzes || []).slice(0, 20).map((q, i) => {
-              const item = q as { question?: string; source_document_id?: string; difficulty?: string; question_type?: string };
+              const item = q as {
+                question?: string;
+                source_document_id?: string;
+                source_section_id?: string;
+                difficulty?: string;
+                question_type?: string;
+                options?: string[];
+                correct_answer?: (number | boolean)[];
+                explanation?: string;
+              };
+              const correctIdx = (item.correct_answer || []).map(a =>
+                typeof a === 'boolean' ? (a ? 0 : 1) : a,
+              );
               return (
-                <div key={i} className="p-3 rounded-xl bg-slate-950/60 border border-purple-900/30 text-xs">
+                <div key={i} className="p-4 rounded-xl bg-slate-950/60 border border-purple-900/30 text-xs space-y-2">
                   <p className="text-white font-semibold text-sm">{i + 1}. {item.question}</p>
-                  <p className="text-slate-500 mt-1">
-                    Source: <span className="text-purple-300 font-mono">{item.source_document_id || '—'}</span>
+                  <div className="space-y-1">
+                    {(item.options || []).map((opt, oi) => {
+                      const isCorrect = correctIdx.includes(oi);
+                      return (
+                        <div
+                          key={oi}
+                          className={
+                            'flex items-center gap-2 px-3 py-1.5 rounded-lg border ' +
+                            (isCorrect
+                              ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold'
+                              : 'bg-slate-900/60 border-slate-800 text-slate-300')
+                          }
+                        >
+                          {isCorrect ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <span className="w-3.5 text-center text-slate-500">{String.fromCharCode(65 + oi)}</span>}
+                          <span>{opt}</span>
+                          {isCorrect && <span className="ml-auto text-[10px] uppercase tracking-wider">correct</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {item.explanation && (
+                    <p className="text-slate-400"><span className="text-slate-500">Explanation:</span> {item.explanation}</p>
+                  )}
+                  <p className="text-slate-500">
+                    Source: <span className="text-purple-300 font-mono">{item.source_document_id || '—'}{item.source_section_id ? ` · ${item.source_section_id}` : ''}</span>
                     {' · '}{item.difficulty} · {item.question_type}
                   </p>
                 </div>

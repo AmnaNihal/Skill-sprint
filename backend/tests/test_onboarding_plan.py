@@ -74,3 +74,67 @@ def test_stages_are_distributed_not_all_day_one():
 def test_role_specific_module_role():
     res = fallback_plan("A", "Finance Associate", "Finance", "Beginner", "30 Days", [_req(1)], [BLOCK])
     assert res["plan"]["modules"][0]["role"] == "Finance Associate"
+
+
+def _procedural_req():
+    r = _req(1)
+    r["requirement"] = "Follow the approved security incident escalation procedure"
+    r["description"] = "Follow the approved security incident escalation procedure"
+    r["competency"] = "Security"
+    return r
+
+
+def test_quiz_types_include_choice_and_truefalse_and_scenario():
+    res = fallback_plan("A", "Software Engineer", "Eng", "Beginner", "30 Days", [_procedural_req()], [BLOCK])
+    types = {q["question_type"] for q in res["plan"]["modules"][0]["quiz"]}
+    assert "multiple_choice" in types
+    assert "true_false" in types
+    assert "scenario" in types
+    for q in res["plan"]["modules"][0]["quiz"]:
+        assert q["source_document_id"] and q["source_section_id"]
+        assert q["correct_answer"] and q["explanation"]
+
+
+def test_scenario_task_generated_for_procedural_requirement():
+    res = fallback_plan("A", "Software Engineer", "Eng", "Beginner", "30 Days", [_procedural_req()], [BLOCK])
+    tasks = res["plan"]["modules"][0]["tasks"]
+    assert any(t.get("scenario") for t in tasks), "procedural requirement must produce a scenario task"
+    for t in tasks:
+        for field in ("description", "expected_outcome", "source_document_id", "completion_criteria", "difficulty", "due_stage", "requirement_id"):
+            assert field in t
+
+
+def test_assessments_include_rubric_for_practical():
+    res = fallback_plan("A", "Software Engineer", "Eng", "Beginner", "30 Days", [_procedural_req()], [BLOCK])
+    assessments = res["plan"]["modules"][0]["assessments"]
+    assert any(a["assessment_type"] == "Knowledge" for a in assessments)
+    practical = [a for a in assessments if a["assessment_type"] == "Practical"]
+    assert practical, "procedural requirement must produce a practical assessment"
+    rubric = practical[0]["rubric"]
+    assert rubric
+    for criterion in rubric:
+        for field in ("criterion", "weight", "expected_performance", "pass_condition"):
+            assert field in criterion
+
+
+def test_quiz_answer_source_validation_flags_unsupported_answer():
+    from python_validation.validators.structure_validators import validate_quiz_answers
+
+    plan = {"modules": [{
+        "module_id": "M1",
+        "module_title": "Safety",
+        "description": "Lock out equipment before service",
+        "source_document_id": "DOC-1",
+        "source_section_id": "S1",
+        "requirement_id": "R1",
+        "quiz": [{
+            "question": "What is required?",
+            "question_type": "multiple_choice",
+            "options": ["Totally unrelated answer about cooking pasta", "Lock out equipment"],
+            "correct_answer": [0],
+            "requirement_id": "R1",
+            "source_document_id": "DOC-1",
+        }],
+    }]}
+    findings = validate_quiz_answers(plan)
+    assert findings and findings[0]["field_name"] == "quiz_answer_source"

@@ -252,6 +252,7 @@ def validate_plan(
     from python_validation.validators.structure_validators import (
         validate_assessments,
         validate_checklists,
+        validate_quiz_answers,
         validate_quizzes,
         validate_tasks,
     )
@@ -261,6 +262,7 @@ def validate_plan(
         + validate_tasks(plan, role)
         + validate_assessments(plan)
         + validate_quizzes(plan)
+        + validate_quiz_answers(plan)
     ):
         report.findings.append(ValidationFinding(**finding))
 
