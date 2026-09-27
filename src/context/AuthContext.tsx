@@ -56,6 +56,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(stored);
     }
     setLoading(false);
+    // Refresh the profile so flags like is_master/role are always current
+    // (older sessions stored before these fields existed).
+    if (getToken()) {
+      api
+        .get<AuthResponse['user']>('/auth/me')
+        .then(me => {
+          const au = toAuthUser(me);
+          setStoredUser(au);
+          setUser(au);
+        })
+        .catch(() => undefined);
+    }
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
