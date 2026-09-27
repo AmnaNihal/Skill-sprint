@@ -17,7 +17,7 @@ Status legend: ✅ done · 🟡 partial · ⏳ pending (requires deployment/medi
 | 11 | Installation Instructions | ✅ | `documentation/INSTALLATION.md` |
 | 12 | Execution Instructions | ✅ | `documentation/EXECUTION.md` |
 | 13 | GitHub Repository | ✅ | https://github.com/AmnaNihal/Skill-sprint |
-| 14 | Deployed Application | ⏳ | Deployment + evaluator credentials pending |
+| 14 | Deployed Application | 🟡 | Deployment-ready: `Dockerfile`, `Procfile`, `render.yaml`, `netlify.toml`, `documentation/DEPLOYMENT.md` (live URL pending) |
 | 15 | Demonstration Video (MP4) | ⏳ | Record main workflows |
 | 16 | Technical Blog (≥2000 words) | ⏳ | Publish |
 | 17 | AI Usage Declaration | ✅ | `AI_USAGE.md` |

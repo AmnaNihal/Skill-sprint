@@ -209,6 +209,7 @@ schema validity, precedence, supplementing, and generation consistency.
 - [`documentation/ARCHITECTURE_AND_TRACEABILITY.md`](documentation/ARCHITECTURE_AND_TRACEABILITY.md) — architecture, requirements traceability matrix, checklist
 - [`documentation/PIPELINE2_DESIGN.md`](documentation/PIPELINE2_DESIGN.md) — Pipeline 2 (Python validation) design
 - [`documentation/PIPELINE2_VALIDATION.md`](documentation/PIPELINE2_VALIDATION.md) — Validation evidence & formulas
+- [`documentation/DEPLOYMENT.md`](documentation/DEPLOYMENT.md) — deployment guide (Render/Docker/Railway)
 - [`AI_USAGE.md`](AI_USAGE.md) — AI usage declaration
 
 ---
