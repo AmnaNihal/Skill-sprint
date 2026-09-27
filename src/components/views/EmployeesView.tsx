@@ -515,7 +515,26 @@ export const EmployeesView: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Location</label>
-                  <ComboSelect value={form.location} onChange={v => setForm({ ...form, location: v })} options={options.locations} placeholder="— select a location —" />
+                  <div className="flex items-center gap-2">
+                    <ComboSelect value={form.location} onChange={v => setForm({ ...form, location: v })} options={options.locations} placeholder="— select a location —" />
+                    <button
+                      type="button"
+                      title="Use current location"
+                      onClick={() => {
+                        if (!navigator.geolocation) {
+                          addToast('Geolocation not supported', 'error');
+                          return;
+                        }
+                        navigator.geolocation.getCurrentPosition(
+                          pos => setForm(f => ({ ...f, location: `${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}` })),
+                          () => addToast('Could not get current location', 'error'),
+                        );
+                      }}
+                      className="shrink-0 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-purple-900/40 text-xs font-semibold transition"
+                    >
+                      📍 Live
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Previous experience</label>

@@ -23,12 +23,13 @@ export const GeneratePlanView: React.FC = () => {
   const { addToast } = useApp();
   const navigate = useNavigate();
   const [employeeName, setEmployeeName] = useState('Alice Johnson');
-  const [roleTitle, setRoleTitle] = useState('Senior Cloud Infrastructure Engineer');
-  const [department, setDepartment] = useState('Platform Infrastructure');
-  const [targetCompletion, setTargetCompletion] = useState('30 Days');
+  const [roleTitle, setRoleTitle] = useState('');
+  const [department, setDepartment] = useState('');
+  const [targetCompletion, setTargetCompletion] = useState('First 90 Days');
   const [experienceLevel, setExperienceLevel] = useState('Beginner');
   const [location, setLocation] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
+  const [employees, setEmployees] = useState<{ employee_id: string; name: string; role: string; department: string }[]>([]);
   const [options, setOptions] = useState<{ departments: string[]; locations: string[]; target_completions: string[] }>({
     departments: [],
     locations: [],
@@ -61,11 +62,18 @@ export const GeneratePlanView: React.FC = () => {
       });
     api
       .get<{ departments: string[]; locations: string[]; target_completions: string[] }>('/meta/options')
-      .then(opts => setOptions({
-        departments: opts.departments || [],
-        locations: opts.locations || [],
-        target_completions: opts.target_completions || [],
-      }))
+      .then(opts => {
+        setOptions({
+          departments: opts.departments || [],
+          locations: opts.locations || [],
+          target_completions: opts.target_completions || [],
+        });
+        if (opts.target_completions?.length) setTargetCompletion(opts.target_completions[0]);
+      })
+      .catch(() => undefined);
+    api
+      .get<{ employee_id: string; name: string; role: string; department: string }[]>('/employees')
+      .then(setEmployees)
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -135,34 +143,33 @@ export const GeneratePlanView: React.FC = () => {
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                 Employee Full Name
               </label>
-              <div className="relative">
-                <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  value={employeeName}
-                  onChange={e => setEmployeeName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
-                />
-              </div>
+              <ComboSelect
+                value={employeeName}
+                onChange={name => {
+                  setEmployeeName(name);
+                  const emp = employees.find(e => (e.name || '').toLowerCase() === name.toLowerCase());
+                  if (emp) {
+                    if (emp.role) setRoleTitle(emp.role);
+                    if (emp.department) setDepartment(emp.department);
+                  }
+                }}
+                options={employees.map(e => e.name).filter(Boolean)}
+                placeholder="— select an employee —"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                 Target Role
               </label>
-              <div className="relative">
-                <Briefcase className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                <select
-                  value={roleTitle}
-                  onChange={e => setRoleTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
-                >
-                  {roles.length === 0 && <option value={roleTitle}>{roleTitle}</option>}
-                  {roles.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              </div>
+              <ComboSelect
+                value={roleTitle}
+                onChange={setRoleTitle}
+                options={roles}
+                placeholder="— select a role —"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -182,13 +189,32 @@ export const GeneratePlanView: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                   Location
                 </label>
-                <ComboSelect
-                  value={location}
-                  onChange={setLocation}
-                  options={options.locations}
-                  placeholder="— select a location —"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
-                />
+                <div className="flex items-center gap-2">
+                  <ComboSelect
+                    value={location}
+                    onChange={setLocation}
+                    options={options.locations}
+                    placeholder="— select a location —"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                  />
+                  <button
+                    type="button"
+                    title="Use current location"
+                    onClick={() => {
+                      if (!navigator.geolocation) {
+                        addToast('Geolocation not supported', 'error');
+                        return;
+                      }
+                      navigator.geolocation.getCurrentPosition(
+                        pos => setLocation(`${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`),
+                        () => addToast('Could not get current location', 'error'),
+                      );
+                    }}
+                    className="shrink-0 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-purple-900/40 text-xs font-semibold transition"
+                  >
+                    📍 Live
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">

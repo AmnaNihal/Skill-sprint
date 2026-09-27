@@ -93,12 +93,13 @@ def meta_options(user: dict = Depends(get_current_user)):
             departments.add(d["department"])
 
     experience = ["Beginner", "Intermediate", "Advanced"]
-    targets = ["30 Days", "60 Days", "90 Days"]
+    targets = ["Day 1", "Week 1", "Week 2", "First 30 Days", "First 60 Days", "First 90 Days"]
     default_locations = ["Remote", "On-site", "Hybrid", "Karachi", "Lahore", "Islamabad"]
 
     managers = []
     for u in user_rows:
-        if u.get("role") not in ("manager", "admin", "training_manager"):
+        # Reporting managers are normal company managers (not company administrators).
+        if u.get("role") != "manager":
             continue
         if not (is_master(user) or str(u.get("id")) == str(user.get("id")) or owns_employee(user, u.get("employee_id"))):
             continue
