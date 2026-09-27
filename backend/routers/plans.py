@@ -20,11 +20,11 @@ from schemas.models import (
     ToggleTaskRequest,
 )
 from security.auth import get_current_user, require_admin
-from security.tenancy import owns_employee
+from security.tenancy import can_view_employee_data, owns_employee
 
 
 def _assert_plan_access(user: dict, row: dict) -> None:
-    if not owns_employee(user, row.get("employee_id")):
+    if not can_view_employee_data(user, row.get("employee_id")):
         raise HTTPException(403, "You can only access your own plans")
 
 router = APIRouter(prefix="/plans", tags=["plans"])
@@ -390,7 +390,7 @@ def list_plans(user: dict = Depends(get_current_user)):
         .data
         or []
     )
-    rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
+    rows = [r for r in rows if can_view_employee_data(user, r.get("employee_id"))]
     return [_flatten_plan_row(r) for r in rows]
 
 

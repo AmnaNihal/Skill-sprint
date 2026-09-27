@@ -81,3 +81,16 @@ def owns_user(actor: dict, target: dict) -> bool:
         return True
     return owns_employee(actor, target.get("employee_id"))
 
+
+def can_view_employee_data(user: dict, employee_id: str | None) -> bool:
+    """True if the user may view data for an employee.
+
+    Covers the user's own linked employee (e.g. a learner viewing the plan an admin generated
+    for them) in addition to the normal owner-scoped access.
+    """
+    if is_master(user):
+        return True
+    if employee_id and str(user.get("employee_id") or "") == str(employee_id):
+        return True
+    return owns_employee(user, employee_id)
+
