@@ -42,3 +42,6 @@ env/
 .mypy_cache/
 .ruff_cache/
 uvicorn.*.log
+
+# Vercel
+.vercel/

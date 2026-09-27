@@ -1,0 +1,8 @@
+backend/
+sample_documents/
+documentation/
+reports/
+node_modules/
+dist/
+.git/
+*.log

@@ -3,6 +3,36 @@
 Deployment-ready instructions for **SkillSprint AI** (FastAPI backend + React frontend).
 Secrets are **never** committed — they are set as environment variables on the host.
 
+## Live deployment (current)
+
+| Part | URL |
+|---|---|
+| Frontend | https://skills-sprint.vercel.app |
+| Backend API | https://skills-sprint-api.vercel.app (`/health`) |
+
+- **Backend** is a Vercel Python function (`backend/vercel.json`, deployed from `backend/`).
+- **Frontend** is the built `dist/` uploaded via the Vercel REST API
+  (`scripts/deploy_frontend.py`) because the Vercel CLI auto-detects the FastAPI backend as a
+  monorepo service and refuses to combine it with the frontend build settings.
+- Backend env vars are set on Vercel (Production): Supabase + DeepSeek + `JWT_SECRET` +
+  `CORS_ORIGINS=https://skills-sprint.vercel.app`.
+
+Redeploy frontend:
+
+```powershell
+$env:VERCEL_TOKEN = "<token>"
+$env:VITE_API_BASE = "https://skills-sprint-api.vercel.app"
+npm run build
+python scripts/deploy_frontend.py
+```
+
+Redeploy backend:
+
+```powershell
+cd backend
+vercel deploy --prod --yes     # uses backend/vercel.json + linked project skills-sprint-api
+```
+
 ## Components
 
 | Component | Tech | Suggested host |

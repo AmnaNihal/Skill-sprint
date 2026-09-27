@@ -17,7 +17,7 @@ Status legend: ✅ done · 🟡 partial · ⏳ pending (requires deployment/medi
 | 11 | Installation Instructions | ✅ | `documentation/INSTALLATION.md` |
 | 12 | Execution Instructions | ✅ | `documentation/EXECUTION.md` |
 | 13 | GitHub Repository | ✅ | https://github.com/AmnaNihal/Skill-sprint |
-| 14 | Deployed Application | 🟡 | Deployment-ready: `Dockerfile`, `Procfile`, `render.yaml`, `vercel.json`, `documentation/DEPLOYMENT.md` (live URL pending) |
+| 14 | Deployed Application | ✅ | Frontend https://skills-sprint.vercel.app · API https://skills-sprint-api.vercel.app |
 | 15 | Demonstration Video (MP4) | 🟡 | Script ready: `documentation/DEMO_VIDEO_SCRIPT.md` (recording pending) |
 | 16 | Technical Blog (≥2000 words) | ✅ | `documentation/TECHNICAL_BLOG.md` |
 | 17 | AI Usage Declaration | ✅ | `AI_USAGE.md` |

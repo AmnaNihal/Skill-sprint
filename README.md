@@ -9,6 +9,8 @@ approved Role Requirement Matrix.
 
 > Theme: OnboardVerse · Category: Generative AI PowerPlay · Primary language: Python
 
+**Live demo:** https://skills-sprint.vercel.app · **API:** https://skills-sprint-api.vercel.app
+
 ---
 
 ## 1. Why this project is different
