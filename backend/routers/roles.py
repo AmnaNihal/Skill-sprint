@@ -5,11 +5,20 @@ from fastapi import APIRouter, Depends, HTTPException
 from database.supabase_client import get_supabase
 from schemas.models import EmployeeCreate, EmployeeUpdate, RequirementCreate, RoleCreate
 from security.auth import get_current_user, require_admin
+from security.tenancy import can_access, is_master
 
 router = APIRouter(tags=["roles", "employees", "requirements"])
 
 VALID_PRIORITIES = {"Critical", "High", "Medium", "Low"}
 VALID_STAGES = {"Day 1", "Week 1", "Week 2", "First 30 Days", "First 60 Days", "First 90 Days"}
+
+
+def _req_visible(user: dict, requirement: dict) -> bool:
+    """A requirement is visible only if its source document is accessible to the user."""
+    if is_master(user):
+        return True
+    source = requirement.get("source_document_id")
+    return bool(source) and can_access(user, source)
 
 
 def _req_out(r: dict) -> dict:
@@ -43,17 +52,19 @@ def list_roles(user: dict = Depends(get_current_user)):
     sb = get_supabase()
     titles: set[str] = set()
     try:
-        for row in sb.table("role_requirements").select("role").execute().data or []:
-            if row.get("role"):
+        rows = sb.table("role_requirements").select("role,source_document_id").execute().data or []
+        for row in rows:
+            if row.get("role") and _req_visible(user, row):
                 titles.add(row["role"])
     except Exception:
         pass
-    try:
-        for row in sb.table("employees").select("role").execute().data or []:
-            if row.get("role"):
-                titles.add(row["role"])
-    except Exception:
-        pass
+    if is_master(user):
+        try:
+            for row in sb.table("employees").select("role").execute().data or []:
+                if row.get("role"):
+                    titles.add(row["role"])
+        except Exception:
+            pass
     return [{"id": f"ROLE-{t[:8]}", "title": t, "department": "", "description": ""} for t in sorted(titles)]
 
 
@@ -244,7 +255,8 @@ def list_requirements(role: str | None = None, user: dict = Depends(get_current_
     if role:
         q = q.eq("role", role)
     rows = q.order("id").execute().data or []
-    return [_req_out(r) for r in rows]
+    visible = [r for r in rows if _req_visible(user, r)]
+    return [_req_out(r) for r in visible]
 
 
 @router.post("/requirements")

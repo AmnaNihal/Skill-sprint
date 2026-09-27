@@ -26,7 +26,7 @@ interface AuthContextType {
   user: AuthUser | null;
   session: null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<AuthUser>;
   signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
 }
@@ -62,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const authUser = toAuthUser(res.user);
     setStoredUser(authUser);
     setUser(authUser);
+    return authUser;
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string, role: UserRole) => {

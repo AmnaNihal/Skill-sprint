@@ -13,6 +13,7 @@ from document_validation.metadata import validate_metadata
 from genai_pipeline.generator import detect_injection
 from role_matrix.matrix import extract_requirements, extract_requirements_with_ai
 from security.auth import get_current_user, require_admin
+from security.tenancy import can_access, filter_documents, scope_id
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -38,7 +39,7 @@ def list_documents(user: dict = Depends(get_current_user)):
         .execute()
     )
     out = []
-    for d in res.data or []:
+    for d in filter_documents(user, res.data or []):
         out.append(
             {
                 "id": d.get("document_id") or str(d.get("id")),
@@ -87,7 +88,7 @@ def list_documents(user: dict = Depends(get_current_user)):
 @router.post("/inspect")
 async def inspect_document(
     file: UploadFile = File(...),
-    user: dict = Depends(require_admin),
+    user: dict = Depends(get_current_user),
 ):
     """Pre-flight: Python extract + AI gate + AI requirement preview. Persists nothing.
 
@@ -163,7 +164,7 @@ async def upload_document(
     expiry_date: str = Form(""),
     title: str = Form(""),
     role_hint: str = Form(""),
-    user: dict = Depends(require_admin),
+    user: dict = Depends(get_current_user),
 ):
     sb = get_supabase()
     settings = get_settings()
@@ -199,11 +200,12 @@ async def upload_document(
     injection_flags = detect_injection(parsed.full_text)
 
     base_id = (filename.rsplit(".", 1)[0].upper()[:6] or "DOC")
-    doc_id = base_id
+    scoped_base = base_id
     n = 1
-    while sb.table("documents").select("id").eq("document_id", doc_id).limit(1).execute().data:
+    while sb.table("documents").select("id").eq("document_id", scope_id(user, scoped_base)).limit(1).execute().data:
         n += 1
-        doc_id = f"{base_id}-{n}"
+        scoped_base = f"{base_id}-{n}"
+    doc_id = scope_id(user, scoped_base)
 
     doc_row = {
         "document_id": doc_id,
@@ -310,6 +312,8 @@ async def upload_document(
 
 @router.get("/{doc_id}/chunks")
 def get_chunks(doc_id: str, user: dict = Depends(get_current_user)):
+    if not can_access(user, doc_id):
+        raise HTTPException(403, "You can only access your own documents")
     res = (
         get_supabase()
         .table("document_chunks")
@@ -333,7 +337,9 @@ def get_chunks(doc_id: str, user: dict = Depends(get_current_user)):
 
 
 @router.delete("/{doc_id}")
-def delete_document(doc_id: str, user: dict = Depends(require_admin)):
+def delete_document(doc_id: str, user: dict = Depends(get_current_user)):
+    if not can_access(user, doc_id):
+        raise HTTPException(403, "You can only delete your own documents")
     sb = get_supabase()
     try:
         sb.table("documents").delete().eq("document_id", doc_id).execute()

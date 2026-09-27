@@ -94,14 +94,15 @@ export const App: React.FC = () => {
         <Route
           path="/documents"
           element={
-            <RequireAuth adminOnly>
+            <RequireAuth>
               <AppShell><DocumentsView /></AppShell>
             </RequireAuth>
           }
-        />        <Route
+        />
+        <Route
           path="/matrix"
           element={
-            <RequireAuth adminOnly>
+            <RequireAuth>
               <AppShell><MatrixView /></AppShell>
             </RequireAuth>
           }

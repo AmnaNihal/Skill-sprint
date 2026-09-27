@@ -21,7 +21,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ mode = 'login' }) => {
   const [email, setEmail] = useState('admin@skillsprint.local');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [selectedDemoRole, setSelectedDemoRole] = useState<UserRole>('admin');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
@@ -38,19 +37,18 @@ export const AuthView: React.FC<AuthViewProps> = ({ mode = 'login' }) => {
     setBusy(true);
     try {
       if (isRegister) {
-        const res = await signUp(email, password, fullName || email.split('@')[0], selectedDemoRole);
+        const res = await signUp(email, password, fullName || email.split('@')[0], 'learner');
         if (res.needsConfirmation) {
           setNeedsConfirmation(true);
           addToast('Check your email to confirm your account', 'info');
         } else {
           addToast('Account created successfully', 'success');
-          goAfterAuth(selectedDemoRole);
+          goAfterAuth('learner');
         }
       } else {
-        await signIn(email, password);
+        const authUser = await signIn(email, password);
         addToast('Logged in successfully', 'success');
-        // role resolved async; navigate by demo selection then corrected by profile
-        goAfterAuth(selectedDemoRole);
+        goAfterAuth(authUser.role);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
@@ -86,39 +84,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ mode = 'login' }) => {
                   ? 'Register to access the onboarding intelligence platform.'
                   : 'Enter your enterprise credentials to access your onboarding dashboard.'}
               </p>
-            </div>
-
-            <div className="mb-6 p-1 bg-slate-100 rounded-xl flex items-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedDemoRole('admin');
-                  if (!isRegister) setEmail('admin@skillsprint.local');
-                }}
-                className={
-                  'flex-1 py-2 text-xs font-bold rounded-lg transition ' +
-                  (selectedDemoRole === 'admin'
-                    ? 'bg-white text-purple-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900')
-                }
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedDemoRole('learner');
-                  if (!isRegister) setEmail('learner@skillsprint.local');
-                }}
-                className={
-                  'flex-1 py-2 text-xs font-bold rounded-lg transition ' +
-                  (selectedDemoRole === 'learner'
-                    ? 'bg-white text-purple-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900')
-                }
-              >
-                Learner
-              </button>
             </div>
 
             {needsConfirmation && (

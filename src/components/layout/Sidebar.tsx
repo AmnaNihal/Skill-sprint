@@ -64,6 +64,8 @@ export const Sidebar: React.FC = () => {
   const learnerNavItems: { tab: NavigationTab; label: string; icon: React.ReactNode; badge?: string }[] = [
     { tab: 'learnerDashboard', label: 'My Curriculum', icon: <GraduationCap className="w-4 h-4" />, badge: '65%' },
     { tab: 'planDetails', label: 'Plan Inspector', icon: <FileText className="w-4 h-4" /> },
+    { tab: 'documents', label: 'My Documents', icon: <FileText className="w-4 h-4" /> },
+    { tab: 'matrix', label: 'My Requirements', icon: <Layers className="w-4 h-4" /> },
   ];
 
   const navItems = role === 'admin' ? adminNavItems : learnerNavItems;
