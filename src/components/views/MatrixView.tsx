@@ -259,18 +259,18 @@ export const MatrixView: React.FC = () => {
 
       <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[1200px] text-left text-sm">
             <thead className="bg-slate-950/80 text-xs font-semibold uppercase text-slate-400 border-b border-purple-900/30">
               <tr>
-                <th className="px-6 py-4">Req ID & Category</th>
-                <th className="px-6 py-4">Title & Description</th>
+                <th className="px-6 py-4 w-[150px]">Req ID & Category</th>
+                <th className="px-6 py-4 min-w-[320px]">Title & Description</th>
                 <th className="px-6 py-4">Target Role</th>
                 <th className="px-6 py-4">Competency</th>
                 <th className="px-6 py-4">Mandatory/Optional</th>
                 <th className="px-6 py-4">Priority</th>
                 <th className="px-6 py-4">Source Doc</th>
                 <th className="px-6 py-4">Source Section</th>
-                <th className="px-6 py-4">Assessment</th>
+                <th className="px-6 py-4 min-w-[220px]">Assessment</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-purple-900/20">
@@ -285,7 +285,7 @@ export const MatrixView: React.FC = () => {
               {!loading &&
                 filteredRequirements.map(req => (
                   <tr key={req.id} className="hover:bg-purple-950/20 transition group">
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap align-top">
                       <div className="space-y-1.5">
                         <span className="font-mono text-xs font-bold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
                           {req.id}
@@ -297,9 +297,9 @@ export const MatrixView: React.FC = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 max-w-sm">
+                    <td className="px-6 py-4 min-w-[320px] max-w-md align-top">
                       <div className="font-semibold text-white group-hover:text-purple-300 transition">{req.title}</div>
-                      <div className="text-xs text-slate-400 line-clamp-2 mt-0.5">{req.description}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{req.description}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center gap-1.5 text-xs text-slate-300 font-medium bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60">

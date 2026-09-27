@@ -104,6 +104,14 @@ export const EmployeesView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Default the reporting manager to the first available manager once options load.
+  useEffect(() => {
+    if (!editingId && !form.manager && options.managers.length > 0) {
+      setForm(f => (f.manager ? f : { ...f, manager: options.managers[0].name }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.managers, editingId]);
+
   const departments = useMemo(
     () => Array.from(new Set(employees.map(e => e.department).filter(Boolean))).sort(),
     [employees],
