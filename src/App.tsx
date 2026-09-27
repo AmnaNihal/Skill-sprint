@@ -18,7 +18,6 @@ import { ReportsView } from './components/views/ReportsView';
 
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
-import { WorkflowFooter } from './components/layout/WorkflowFooter';
 
 import { UploadDocModal } from './components/modals/UploadDocModal';
 import { AddRequirementModal } from './components/modals/AddRequirementModal';
@@ -71,8 +70,6 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0b0914] text-slate-100 flex flex-col font-sans selection:bg-purple-500 selection:text-white">
-      <WorkflowFooter />
-
       <Routes>
         <Route path="/" element={<LandingView />} />
         <Route path="/login" element={<AuthView />} />
