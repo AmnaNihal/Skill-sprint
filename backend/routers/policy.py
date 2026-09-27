@@ -105,7 +105,7 @@ async def upload_version(
         raise HTTPException(400, f"DB insert failed: {e}")
     db_id = created.get("id")
 
-    chunks = chunk_document(parsed, document_id)
+    chunks = chunk_document(parsed, document_id, max_chars=get_settings().chunk_max_chars)
     chunk_rows = [
         {
             "document_db_id": db_id,
@@ -114,7 +114,7 @@ async def upload_version(
             "chunk_id": f"{document_id}-{version}-C{c.chunk_index:03d}",
             "section_id": c.section_id or "Section-1",
             "heading": c.heading or doc_row["title"],
-            "source_location": c.page_ref or f"Chunk {c.chunk_index}",
+            "source_location": c.source_location or c.page_ref or f"Chunk {c.chunk_index}",
             "text": c.content,
         }
         for c in chunks

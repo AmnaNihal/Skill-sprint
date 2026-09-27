@@ -228,7 +228,7 @@ async def upload_document(
     except Exception as e:
         raise HTTPException(400, f"DB insert failed: {e}")
 
-    chunks = chunk_document(parsed, doc_id)
+    chunks = chunk_document(parsed, doc_id, max_chars=settings.chunk_max_chars)
     chunk_rows = []
     for c in chunks:
         chunk_rows.append(
@@ -239,7 +239,7 @@ async def upload_document(
                 "chunk_id": f"{doc_id}-{version or '1.0'}-C{c.chunk_index:03d}",
                 "section_id": c.section_id or "Section-1",
                 "heading": c.heading or doc_title,
-                "source_location": c.page_ref or f"Chunk {c.chunk_index}",
+                "source_location": c.source_location or c.page_ref or f"Chunk {c.chunk_index}",
                 "text": c.content,
             }
         )

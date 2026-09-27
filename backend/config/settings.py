@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     ai_provider: str = "deepseek"  # deepseek | gemini | openai | fallback
     cors_origins: str = "http://localhost:3000"
     max_file_size_mb: int = 25
+    chunk_max_chars: int = 1800
     master_admin_emails: str = "admin@skillsprint.local"
     jwt_secret: str = "skillsprint-dev-secret-change-in-prod"
     jwt_algorithm: str = "HS256"
