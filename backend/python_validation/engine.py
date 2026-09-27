@@ -278,88 +278,31 @@ def validate_plan(
                 )
 
     # 4) Role relevance
-    for it in items:
-        if it.get("role") and role and _norm(it["role"]) != _norm(role):
-            report.findings.append(
-                ValidationFinding(
-                    requirement_id=str(it.get("requirement_ids") or "-"),
-                    field_name="role_relevance",
-                    genai_value=it["role"],
-                    python_value=role,
-                    result="Mismatch",
-                    validation_status="Manual Review Required",
-                    detail=f"Role mismatch on {it['kind']}: {it.get('title')}",
-                )
-            )
+    from python_validation.validators.role_validator import validate_roles
+
+    for finding in validate_roles(items, role):
+        report.findings.append(ValidationFinding(**finding))
 
     # 5) Duplicate detection
-    seen_titles: dict[str, str] = {}
-    for it in items:
-        key = _norm(it.get("title") or "")
-        if not key:
-            continue
-        if key in seen_titles:
-            dup = f"{it['kind']}: {it.get('title')}"
-            report.duplicates.append(dup)
-            report.findings.append(
-                ValidationFinding(
-                    requirement_id="-",
-                    field_name="duplicate",
-                    genai_value=it.get("title") or "",
-                    python_value="unique content required",
-                    result="Mismatch",
-                    validation_status="Duplicate Detected",
-                    detail=dup,
-                )
-            )
-        else:
-            seen_titles[key] = it["kind"]
+    from python_validation.validators.duplicate_validator import detect_duplicates
 
-    # 6) Sequence validation: Day-1 items should not be advanced-only; assessments after learning modules
-    stages_order = ["Day 1", "Week 1", "Week 2", "First 30 Days", "First 60 Days", "First 90 Days"]
-    modules = plan.get("modules") or []
-    assessment_before_learning = False
-    for i, m in enumerate(modules):
-        has_assessment = bool(m.get("assessment_topic") or m.get("assessments"))
-        has_tasks = bool(m.get("tasks"))
-        if has_assessment and not has_tasks and i == 0:
-            assessment_before_learning = True
-        stage = m.get("due_stage") or ""
-        if stage and stage not in stages_order:
-            report.sequence_issues.append(f"Module {m.get('module_id')} invalid stage: {stage}")
-        # advanced content on Day 1
-        if stage == "Day 1" and str(m.get("difficulty", "")).lower() == "advanced":
-            report.sequence_issues.append(f"Module {m.get('module_id')} advanced content scheduled Day 1")
-        # prerequisites: if module has prerequisites, they should appear earlier
-        prereqs = set(m.get("prerequisites") or [])
-        titles_so_far = {_norm(x.get("module_title")) for x in modules[:i]}
-        titles_so_far |= {_norm(x.get("module_id")) for x in modules[:i]}
-        for p in prereqs:
-            if _norm(p) not in titles_so_far and p not in titles_so_far:
-                report.sequence_issues.append(
-                    f"Module {m.get('module_id')} prerequisite missing/out of order: {p}"
-                )
+    duplicates, duplicate_findings = detect_duplicates(items)
+    report.duplicates.extend(duplicates)
+    for finding in duplicate_findings:
+        report.findings.append(ValidationFinding(**finding))
 
-    if assessment_before_learning:
-        report.sequence_issues.append("Assessment scheduled before learning content")
+    # 6) Learning sequence + prerequisites
+    from python_validation.validators.sequence_validator import validate_sequence
 
-    for issue in report.sequence_issues:
-        report.findings.append(
-            ValidationFinding(
-                requirement_id="-",
-                field_name="learning_sequence",
-                genai_value=issue,
-                python_value="valid sequence required",
-                result="Mismatch",
-                validation_status="Sequence Error",
-                detail=issue,
-            )
-        )
+    sequence_issues, sequence_findings = validate_sequence(plan)
+    report.sequence_issues.extend(sequence_issues)
+    for finding in sequence_findings:
+        report.findings.append(ValidationFinding(**finding))
 
     # 7) Contradictions via contradiction_checks module
-    from contradiction_checks.detector import detect_contradictions
+    from python_validation.validators.contradiction_validator import validate_contradictions
 
-    for c in detect_contradictions(plan, ground_truth_requirements, applicable):
+    for c in validate_contradictions(plan, ground_truth_requirements, applicable):
         report.contradictions.append(c)
         report.findings.append(
             ValidationFinding(
