@@ -143,18 +143,6 @@ export const DashboardView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
-            {isMaster && (
-              <button
-                onClick={() => {
-                  setAccount({ email: '', password: '', full_name: '', role: 'admin', employee_id: '' });
-                  setAccountOpen(true);
-                }}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-purple-900/40 text-sm font-semibold transition"
-              >
-                <Users className="w-4 h-4 text-purple-400" />
-                Create Admin
-              </button>
-            )}
             <button
               onClick={() => setUploadModalOpen(true)}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-purple-900/40 text-sm font-semibold transition"
@@ -260,13 +248,10 @@ export const DashboardView: React.FC = () => {
             <span className="text-xs text-slate-500">({users.length})</span>
           </div>
           <button
-            onClick={() => {
-              setAccount({ email: '', password: '', full_name: '', role: 'learner', employee_id: '' });
-              setAccountOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition"
+            onClick={() => navigate('/users')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-purple-900/40 transition"
           >
-            <Plus className="w-3.5 h-3.5" /> {isMaster ? 'Create Admin / User' : 'Create Employee Login'}
+            Manage →
           </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

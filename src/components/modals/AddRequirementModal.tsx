@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { X, Plus, Layers } from 'lucide-react';
@@ -8,13 +8,35 @@ export const AddRequirementModal: React.FC = () => {
   const { addReqModalOpen, setAddReqModalOpen, addToast } = useApp();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [role, setRole] = useState('Customer Success Coordinator');
+  const [role, setRole] = useState('');
+  const [roleOptions, setRoleOptions] = useState<string[]>([]);
+  const [docOptions, setDocOptions] = useState<{ id: string; title: string }[]>([]);
   const [category, setCategory] = useState<RequirementCategory>('Compliance');
   const [priority, setPriority] = useState<PriorityLevel>('P1');
   const [mandatory, setMandatory] = useState(true);
-  const [sourceDocId, setSourceDocId] = useState('NSF-HBK');
+  const [sourceDocId, setSourceDocId] = useState('');
   const [requirementType, setRequirementType] = useState('Must Complete');
   const [busy, setBusy] = useState(false);
+
+  // Auto-populate options from already-uploaded documents and known roles.
+  useEffect(() => {
+    api
+      .get<{ title: string }[]>('/roles')
+      .then(rs => {
+        const titles = rs.map(r => r.title).filter(Boolean);
+        setRoleOptions(titles);
+        setRole(prev => prev || titles[0] || '');
+      })
+      .catch(() => undefined);
+    api
+      .get<{ id: string; title: string }[]>('/documents')
+      .then(ds => {
+        const docs = ds.map(d => ({ id: d.id, title: d.title || d.id }));
+        setDocOptions(docs);
+        setSourceDocId(prev => prev || (docs[0]?.id ?? ''));
+      })
+      .catch(() => undefined);
+  }, []);
 
   if (!addReqModalOpen) return null;
 
@@ -104,12 +126,16 @@ export const AddRequirementModal: React.FC = () => {
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                 Target Role
               </label>
-              <input
-                type="text"
+              <select
                 value={role}
                 onChange={e => setRole(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
-              />
+              >
+                <option value="">All Roles</option>
+                {roleOptions.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
@@ -180,12 +206,19 @@ export const AddRequirementModal: React.FC = () => {
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
               Source Document ID
             </label>
-            <input
-              type="text"
+            <select
               value={sourceDocId}
               onChange={e => setSourceDocId(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
-            />
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+            >
+              <option value="">— none —</option>
+              {docOptions.map(d => (
+                <option key={d.id} value={d.id}>{d.id} — {d.title}</option>
+              ))}
+            </select>
+            {docOptions.length === 0 && (
+              <p className="text-[10px] text-slate-500 mt-1">No documents yet — upload a document first to map requirements.</p>
+            )}
           </div>
 
           <div className="pt-4 flex items-center justify-end gap-3 border-t border-purple-900/30">
