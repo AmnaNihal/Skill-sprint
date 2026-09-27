@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/api';
+import { ComboSelect } from '../common/ComboSelect';
 import {
   Layers, Plus, Filter, Search, Shield,
   CheckCircle2, AlertTriangle, Sparkles, Building2, RefreshCw
@@ -35,7 +36,14 @@ export const MatrixView: React.FC = () => {
   const [mandatoryOnly, setMandatoryOnly] = useState(false);
   const [roleModalOpen, setRoleModalOpen] = useState(false);
   const [roleForm, setRoleForm] = useState({ title: '', department: '', description: '' });
+  const [deptOptions, setDeptOptions] = useState<string[]>([]);
   const [creatingRole, setCreatingRole] = useState(false);
+
+  useEffect(() => {
+    api.get<{ departments: string[] }>('/meta/options')
+      .then(o => setDeptOptions(o.departments || []))
+      .catch(() => undefined);
+  }, []);
 
   const reload = () => {
     Promise.all([
@@ -367,20 +375,21 @@ export const MatrixView: React.FC = () => {
             <form onSubmit={createRole} className="p-5 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Role title</label>
-                <input
+                <ComboSelect
                   value={roleForm.title}
-                  onChange={e => setRoleForm({ ...roleForm, title: e.target.value })}
-                  placeholder="e.g. Data Analyst"
-                  required
+                  onChange={v => setRoleForm({ ...roleForm, title: v })}
+                  options={roles.filter(r => r !== 'All')}
+                  placeholder="— select a role (or add new) —"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Department</label>
-                <input
+                <ComboSelect
                   value={roleForm.department}
-                  onChange={e => setRoleForm({ ...roleForm, department: e.target.value })}
-                  placeholder="e.g. Data & Analytics (type a new name to create it)"
+                  onChange={v => setRoleForm({ ...roleForm, department: v })}
+                  options={deptOptions}
+                  placeholder="— select a department (or add new) —"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
                 />
               </div>
