@@ -55,6 +55,59 @@ def _req_out(r: dict) -> dict:
     }
 
 
+@router.get("/meta/options")
+def meta_options(user: dict = Depends(get_current_user)):
+    """Dropdown options derived from uploaded documents (AI-extracted) + manual entries."""
+    sb = get_supabase()
+    roles: set[str] = set()
+    departments: set[str] = set()
+    locations: set[str] = set()
+
+    for r in sb.table("role_requirements").select("role,competency,source_document_id").execute().data or []:
+        if not _req_visible(user, r):
+            continue
+        if r.get("role"):
+            roles.add(r["role"])
+        if r.get("competency"):
+            departments.add(r["competency"])
+
+    for e in filter_employees(user, sb.table("employees").select("role,department").execute().data or []):
+        if e.get("role"):
+            roles.add(e["role"])
+        if e.get("department"):
+            departments.add(e["department"])
+
+    for d in filter_documents(user, sb.table("documents").select("department").execute().data or []):
+        if d.get("department"):
+            departments.add(d["department"])
+
+    experience = ["Beginner", "Intermediate", "Advanced"]
+    targets = ["30 Days", "60 Days", "90 Days"]
+    default_locations = ["Remote", "On-site", "Hybrid", "Karachi", "Lahore", "Islamabad"]
+
+    manager_rows = (
+        sb.table("users").select("display_name,email,role,employee_id,id").execute().data or []
+    )
+    managers = []
+    for u in manager_rows:
+        if u.get("role") not in ("manager", "admin", "training_manager"):
+            continue
+        if not (is_master(user) or str(u.get("id")) == str(user.get("id")) or owns_employee(user, u.get("employee_id"))):
+            continue
+        name = u.get("display_name") or (u.get("email") or "").split("@")[0]
+        if name:
+            managers.append({"name": name, "email": u.get("email") or "", "role": u.get("role")})
+
+    return {
+        "roles": sorted(r for r in roles if r),
+        "departments": sorted(d for d in departments if d),
+        "locations": sorted(locations) or default_locations,
+        "experience_levels": experience,
+        "target_completions": targets,
+        "managers": sorted(managers, key=lambda m: m["name"].lower()),
+    }
+
+
 @router.get("/roles")
 def list_roles(user: dict = Depends(get_current_user)):
     sb = get_supabase()

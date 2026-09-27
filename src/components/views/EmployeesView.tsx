@@ -59,6 +59,12 @@ export const EmployeesView: React.FC = () => {
   const [adminSaving, setAdminSaving] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
+  const [options, setOptions] = useState<{
+    roles: string[];
+    departments: string[];
+    locations: string[];
+    managers: { name: string; email: string; role: string }[];
+  }>({ roles: [], departments: [], locations: [], managers: [] });
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
@@ -72,12 +78,19 @@ export const EmployeesView: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [emps, rolesList] = await Promise.all([
+      const [emps, rolesList, opts] = await Promise.all([
         api.get<Employee[]>('/employees'),
         api.get<{ title: string }[]>('/roles').catch(() => []),
+        api.get<{
+          roles: string[];
+          departments: string[];
+          locations: string[];
+          managers: { name: string; email: string; role: string }[];
+        }>('/meta/options').catch(() => ({ roles: [], departments: [], locations: [], managers: [] })),
       ]);
       setEmployees(emps);
-      setRoles(Array.from(new Set(rolesList.map(r => r.title))).sort());
+      setRoles(Array.from(new Set([...rolesList.map(r => r.title), ...(opts.roles || [])].filter(Boolean))).sort());
+      setOptions(opts);
     } catch (e) {
       addToast(e instanceof Error ? e.message : 'Failed to load employees', 'error');
     } finally {
@@ -114,7 +127,11 @@ export const EmployeesView: React.FC = () => {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ ...EMPTY_FORM, role: roles[0] || '' });
+    setForm({
+      ...EMPTY_FORM,
+      role: roles[0] || '',
+      manager: options.managers[0]?.name || '',
+    });
     setModalOpen(true);
   };
 
@@ -444,7 +461,7 @@ export const EmployeesView: React.FC = () => {
                     placeholder="e.g. Engineering"
                   />
                   <datalist id="dept-options">
-                    {departments.map(d => <option key={d} value={d} />)}
+                    {Array.from(new Set([...departments, ...options.departments])).sort().map(d => <option key={d} value={d} />)}
                   </datalist>
                 </div>
               </div>
@@ -474,12 +491,25 @@ export const EmployeesView: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Reporting manager</label>
-                  <input
-                    value={form.manager}
-                    onChange={e => setForm({ ...form, manager: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
-                    placeholder="e.g. Sarah Malik"
-                  />
+                  {options.managers.length > 1 ? (
+                    <select
+                      value={form.manager}
+                      onChange={e => setForm({ ...form, manager: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="">— select manager —</option>
+                      {options.managers.map(m => (
+                        <option key={m.email || m.name} value={m.name}>{m.name} ({m.role})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={form.manager}
+                      onChange={e => setForm({ ...form, manager: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                      placeholder={options.managers.length === 1 ? options.managers[0].name : 'Reporting manager'}
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Training status</label>
@@ -498,11 +528,15 @@ export const EmployeesView: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Location</label>
                   <input
+                    list="loc-options"
                     value={form.location}
                     onChange={e => setForm({ ...form, location: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
-                    placeholder="e.g. Karachi / Remote"
+                    placeholder="Select or type a location"
                   />
+                  <datalist id="loc-options">
+                    {options.locations.map(l => <option key={l} value={l} />)}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Previous experience</label>

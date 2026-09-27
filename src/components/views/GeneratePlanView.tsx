@@ -26,7 +26,13 @@ export const GeneratePlanView: React.FC = () => {
   const [department, setDepartment] = useState('Platform Infrastructure');
   const [targetCompletion, setTargetCompletion] = useState('30 Days');
   const [experienceLevel, setExperienceLevel] = useState('Beginner');
+  const [location, setLocation] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
+  const [options, setOptions] = useState<{ departments: string[]; locations: string[]; target_completions: string[] }>({
+    departments: [],
+    locations: [],
+    target_completions: [],
+  });
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [synthesisStep, setSynthesisStep] = useState(0);
   const [error, setError] = useState('');
@@ -52,6 +58,14 @@ export const GeneratePlanView: React.FC = () => {
       .catch(() => {
         setRoles(['Senior Cloud Infrastructure Engineer', 'DevOps Engineer', 'Data Platform Engineer']);
       });
+    api
+      .get<{ departments: string[]; locations: string[]; target_completions: string[] }>('/meta/options')
+      .then(opts => setOptions({
+        departments: opts.departments || [],
+        locations: opts.locations || [],
+        target_completions: opts.target_completions || [],
+      }))
+      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -156,11 +170,30 @@ export const GeneratePlanView: React.FC = () => {
                   Department
                 </label>
                 <input
-                  type="text"
+                  list="gen-dept-options"
                   value={department}
                   onChange={e => setDepartment(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                  placeholder="Select or type a department"
                 />
+                <datalist id="gen-dept-options">
+                  {options.departments.map(d => <option key={d} value={d} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                  Location
+                </label>
+                <input
+                  list="gen-loc-options"
+                  value={location}
+                  onChange={e => setLocation(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                  placeholder="Select or type a location"
+                />
+                <datalist id="gen-loc-options">
+                  {options.locations.map(l => <option key={l} value={l} />)}
+                </datalist>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
@@ -171,12 +204,14 @@ export const GeneratePlanView: React.FC = () => {
                   onChange={e => setTargetCompletion(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
                 >
-                  <option value="14 Days">14 Days</option>
-                  <option value="30 Days">30 Days</option>
-                  <option value="60 Days">60 Days</option>
-                  <option value="90 Days">90 Days</option>
+                  {(options.target_completions.length ? options.target_completions : ['30 Days', '60 Days', '90 Days']).map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
                 </select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                   Experience
