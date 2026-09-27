@@ -30,6 +30,7 @@ def me(user: dict = Depends(get_current_user)):
 
 @router.get("/users")
 def list_users(user: dict = Depends(require_admin)):
+    """List all user accounts (all roles) for administrators."""
     rows = (
         get_supabase()
         .table("users")
@@ -39,7 +40,7 @@ def list_users(user: dict = Depends(require_admin)):
         .data
         or []
     )
-    return [_public_user(r) for r in rows if owns_user(user, r)]
+    return [_public_user(r) for r in rows]
 
 
 @router.post("/users")
