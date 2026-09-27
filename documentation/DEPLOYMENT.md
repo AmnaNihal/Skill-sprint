@@ -8,7 +8,7 @@ Secrets are **never** committed — they are set as environment variables on the
 | Component | Tech | Suggested host |
 |---|---|---|
 | Backend API | FastAPI (Python 3.12) | Render / Railway (Docker or Python) |
-| Frontend | React + Vite (static build) | Netlify / Vercel / Render Static |
+| Frontend | React + Vite (static build) | Vercel |
 | Database | Supabase (PostgreSQL) | Supabase (already provisioned) |
 | AI provider | DeepSeek (default) | DeepSeek API |
 
@@ -38,13 +38,13 @@ Frontend build variable:
 ## Option A — Render (Blueprint)
 
 1. Push the repo (already on GitHub).
-2. Render → **New → Blueprint** → select the repo. `render.yaml` provisions:
+2. Render → **New → Blueprint** → select the repo. `render.yaml` provisions the backend:
    - `skillsprint-api` (Python web service, health check `/health`)
-   - `skillsprint-web` (static site)
+   - Frontend is deployed separately on **Vercel** (see Option D).
 3. Set the secret env vars (`sync: false`) in the dashboard: `SUPABASE_URL`, `SUPABASE_KEY`,
-   `DEEPSEEK_API_KEY`, `JWT_SECRET`, `CORS_ORIGINS`, and for the static site `VITE_API_BASE`.
-4. Deploy. Backend URL → set `CORS_ORIGINS` to the static site URL; static site → rebuild with
-   `VITE_API_BASE` = backend URL.
+   `DEEPSEEK_API_KEY`, `JWT_SECRET`, `CORS_ORIGINS`.
+4. Deploy the backend. Then deploy the frontend on Vercel with `VITE_API_BASE` = backend URL,
+   and set backend `CORS_ORIGINS` to the Vercel site URL.
 
 ## Option B — Docker (any host)
 
@@ -66,14 +66,22 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 `backend/Procfile` is included for hosts that use it:
 `web: uvicorn main:app --host 0.0.0.0 --port $PORT`.
 
-Frontend:
+Frontend (Vercel):
+
+1. Vercel → **Add New → Project** → import the repository.
+2. Framework preset **Vite** is auto-detected (`vercel.json` also sets build/output + SPA rewrites).
+3. Set env var `VITE_API_BASE` = your deployed backend URL (e.g. `https://skillsprint-api.onrender.com`).
+4. Deploy. `vercel.json` handles the SPA catch-all rewrite to `/index.html`, so direct routes
+   (`/documents`, `/plans`, `/learner`, …) work on refresh.
+
+## Option D — Vercel frontend (CLI)
 
 ```bash
-npm ci
-VITE_API_BASE=https://<backend-url> npm run build   # outputs dist/
+npm i -g vercel
+vercel            # preview
+vercel --prod     # production
+# set VITE_API_BASE when prompted, or: vercel env add VITE_API_BASE
 ```
-
-Deploy `dist/` to Netlify (uses `netlify.toml`, SPA redirect) or Vercel.
 
 ## Option C — Railway
 
@@ -97,4 +105,4 @@ Deploy `dist/` to Netlify (uses `netlify.toml`, SPA redirect) or Vercel.
 - The app falls back to a deterministic plan builder if the AI provider is rate-limited, so the
   demo stays functional without credits.
 - `backend/.env` is git-ignored; only `backend/.env.example` is committed.
-- The frontend is an SPA — configure a catch-all redirect to `/index.html` (Netlify config included).
+- The frontend is an SPA — `vercel.json` includes the catch-all rewrite to `/index.html`.
