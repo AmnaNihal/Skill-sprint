@@ -14,6 +14,12 @@ from python_validation.engine import validate_plan
 from python_validation.validation_context import build_context
 from schemas.models import GeneratePlanRequest, ReviewDecision, ToggleTaskRequest
 from security.auth import get_current_user, require_admin
+from security.tenancy import owns_employee
+
+
+def _assert_plan_access(user: dict, row: dict) -> None:
+    if not owns_employee(user, row.get("employee_id")):
+        raise HTTPException(403, "You can only access your own plans")
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 
@@ -358,6 +364,7 @@ def generate_plan(payload: GeneratePlanRequest, user: dict = Depends(require_adm
 @router.get("")
 def list_plans(user: dict = Depends(get_current_user)):
     rows = get_supabase().table("plans").select("*").order("created_at", desc=True).execute().data or []
+    rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
     return [_flatten_plan_row(r) for r in rows]
 
 
@@ -365,6 +372,7 @@ def list_plans(user: dict = Depends(get_current_user)):
 def get_plan(plan_id: str, user: dict = Depends(get_current_user)):
     sb = get_supabase()
     row = _fetch_plan_row(sb, plan_id)
+    _assert_plan_access(user, row)
     flat = _flatten_plan_row(row)
     payload = _normalize_plan(row.get("payload") or {})
     validation = payload.get("validation") or {}
@@ -396,6 +404,7 @@ def get_plan(plan_id: str, user: dict = Depends(get_current_user)):
 def revalidate(plan_id: str, user: dict = Depends(require_admin)):
     sb = get_supabase()
     row = _fetch_plan_row(sb, plan_id)
+    _assert_plan_access(user, row)
     payload = row.get("payload") or {}
     role = row.get("role") or payload.get("role") or ""
     findings, comparison, sumry, report = _run_validation(sb, payload, role)
@@ -435,6 +444,7 @@ def consistency_check(plan_id: str, user: dict = Depends(require_admin)):
     """Regenerate once and compare structured output for generation consistency (SRS)."""
     sb = get_supabase()
     row = _fetch_plan_row(sb, plan_id)
+    _assert_plan_access(user, row)
     role = row.get("role") or (row.get("payload") or {}).get("role") or ""
     stored = _normalize_plan(row.get("payload") or {})
 
@@ -501,6 +511,7 @@ def consistency_check(plan_id: str, user: dict = Depends(require_admin)):
 def review_plan(payload: ReviewDecision, user: dict = Depends(require_admin)):
     sb = get_supabase()
     row = _fetch_plan_row(sb, payload.plan_id)
+    _assert_plan_access(user, row)
     status_map = {"Approved": "Approved", "Rejected": "Rejected", "Edited": "Edited"}
     new_status = status_map.get(payload.decision, payload.decision)
     pl = dict(row.get("payload") or {})

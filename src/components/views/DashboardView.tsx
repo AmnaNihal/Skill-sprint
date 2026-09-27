@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import {
   FileText, Layers, CheckCircle2, Shield,
-  Sparkles, TrendingUp, ChevronRight, UserCheck, Upload, RefreshCw
+  Sparkles, TrendingUp, ChevronRight, UserCheck, Upload, RefreshCw, Users, Plus, X
 } from 'lucide-react';
 
 interface AdminDash {
@@ -31,23 +32,80 @@ interface PlanRow {
   coverage_score?: number;
 }
 
+interface UserRow {
+  id: string | number;
+  email: string;
+  full_name: string;
+  role: string;
+  employee_id?: string | null;
+  is_active?: boolean;
+}
+
+interface EmpOption {
+  employee_id: string;
+  name: string;
+}
+
+
 export const DashboardView: React.FC = () => {
   const { setUploadModalOpen, setPlanReviewModalOpen, addToast } = useApp();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<AdminDash | null>(null);
   const [plans, setPlans] = useState<PlanRow[]>([]);
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [emps, setEmps] = useState<EmpOption[]>([]);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [account, setAccount] = useState({ email: '', password: '', full_name: '', role: 'learner', employee_id: '' });
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const isMaster = !!user?.is_master;
+
+  const refreshUsers = () => {
+    api.get<UserRow[]>('/auth/users').then(setUsers).catch(() => undefined);
+    api.get<EmpOption[]>('/employees').then(setEmps).catch(() => undefined);
+  };
+
+  const createAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!account.email || account.password.length < 6) {
+      addToast('Email and a password of 6+ characters are required', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post('/auth/users', {
+        email: account.email,
+        password: account.password,
+        full_name: account.full_name,
+        role: account.role,
+        employee_id: account.employee_id || null,
+      });
+      addToast(`Account created for ${account.email}`, 'success');
+      setAccountOpen(false);
+      setAccount({ email: '', password: '', full_name: '', role: 'learner', employee_id: '' });
+      refreshUsers();
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Failed to create account', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
     Promise.all([
       api.get<AdminDash>('/dashboard/admin'),
       api.get<PlanRow[]>('/plans'),
+      api.get<UserRow[]>('/auth/users').catch(() => []),
+      api.get<EmpOption[]>('/employees').catch(() => []),
     ])
-      .then(([s, p]) => {
+      .then(([s, p, u, e]) => {
         if (!alive) return;
         setStats(s);
         setPlans(p);
+        setUsers(u);
+        setEmps(e);
       })
       .catch(e => {
         if (alive) addToast(e instanceof Error ? e.message : 'Failed to load dashboard', 'error');
@@ -182,6 +240,44 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
+      <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-purple-400" />
+            <h2 className="text-base font-bold text-white">Team & Administrators</h2>
+            <span className="text-xs text-slate-500">({users.length})</span>
+          </div>
+          <button
+            onClick={() => {
+              setAccount({ email: '', password: '', full_name: '', role: 'learner', employee_id: '' });
+              setAccountOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition"
+          >
+            <Plus className="w-3.5 h-3.5" /> {isMaster ? 'Create Admin / User' : 'Create Employee Login'}
+          </button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {users.map(u => (
+            <div key={String(u.id)} className="bg-slate-950/60 border border-purple-900/20 rounded-xl p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-white truncate">{u.full_name || u.email}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30 capitalize">{u.role}</span>
+              </div>
+              <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                {u.email}{u.employee_id ? ` · ${u.employee_id}` : ''}
+              </div>
+            </div>
+          ))}
+          {users.length === 0 && <p className="text-slate-500 text-sm">No accounts yet.</p>}
+        </div>
+        {isMaster && (
+          <p className="text-[11px] text-slate-500">
+            As the main administrator you can create company administrators. Each admin then manages only their own employees and users.
+          </p>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 bg-slate-900/80 rounded-2xl border border-purple-900/30 p-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -275,6 +371,96 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
       </div>
+      {accountOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-purple-800/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-5 border-b border-purple-900/30 flex items-center justify-between">
+              <h3 className="font-bold text-white text-base">
+                {isMaster ? 'Create Admin / User Account' : 'Create Employee Login'}
+              </h3>
+              <button
+                onClick={() => setAccountOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={createAccount} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Full name</label>
+                <input
+                  value={account.full_name}
+                  onChange={e => setAccount({ ...account, full_name: e.target.value })}
+                  placeholder="Company Admin"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={account.email}
+                  onChange={e => setAccount({ ...account, email: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Temporary password</label>
+                <input
+                  type="text"
+                  required
+                  minLength={6}
+                  value={account.password}
+                  onChange={e => setAccount({ ...account, password: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Role</label>
+                  <select
+                    value={account.role}
+                    onChange={e => setAccount({ ...account, role: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                  >
+                    {isMaster && <option value="admin">admin</option>}
+                    <option value="manager">manager</option>
+                    <option value="reviewer">reviewer</option>
+                    <option value="training_manager">training_manager</option>
+                    <option value="learner">learner</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Link employee (optional)</label>
+                  <select
+                    value={account.employee_id}
+                    onChange={e => setAccount({ ...account, employee_id: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="">— none —</option>
+                    {emps.map(e => (
+                      <option key={e.employee_id} value={e.employee_id}>{e.name} ({e.employee_id})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="pt-3 flex items-center justify-end gap-3 border-t border-purple-900/30">
+                <button type="button" onClick={() => setAccountOpen(false)} className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold disabled:opacity-50"
+                >
+                  {saving ? 'Creating…' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

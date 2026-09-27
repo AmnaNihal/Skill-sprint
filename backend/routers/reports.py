@@ -8,6 +8,7 @@ from database.supabase_client import get_supabase
 from routers.plans import _fetch_plan_row, _flatten_plan_row, _normalize_plan, review_plan
 from schemas.models import ReviewDecision
 from security.auth import get_current_user, require_admin
+from security.tenancy import filter_documents, filter_employees, owns_employee
 
 router = APIRouter(tags=["validation", "reviews", "reports", "dashboard"])
 
@@ -31,6 +32,7 @@ def get_validation(plan_id: str, user: dict = Depends(get_current_user)):
 @router.get("/reviews/queue")
 def review_queue(status: str = "Pending Review", user: dict = Depends(require_admin)):
     rows = get_supabase().table("plans").select("*").order("created_at", desc=True).execute().data or []
+    rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
     mapped = [_flatten_plan_row(r) for r in rows]
     if status in ("Pending", "Pending Review"):
         return [p for p in mapped if p.get("status") in ("Pending Review", "Draft", "Edited")]
@@ -48,6 +50,7 @@ def decide(payload: ReviewDecision, user: dict = Depends(require_admin)):
 def export_report(format: str = "csv", user: dict = Depends(require_admin)):
     sb = get_supabase()
     rows = sb.table("plans").select("*").execute().data or []
+    rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
     plans = [_flatten_plan_row(r) for r in rows]
     findings = []
     for r in rows:
@@ -106,11 +109,17 @@ def export_report(format: str = "csv", user: dict = Depends(require_admin)):
 @router.get("/dashboard/admin")
 def admin_dashboard(user: dict = Depends(get_current_user)):
     sb = get_supabase()
-    docs = sb.table("documents").select("id,is_active,is_quarantined").execute().data or []
-    reqs = sb.table("role_requirements").select("id,mandatory,role").execute().data or []
+    docs = filter_documents(user, sb.table("documents").select("id,is_active,is_quarantined,document_id").execute().data or [])
+    reqs = sb.table("role_requirements").select("id,mandatory,role,source_document_id").execute().data or []
+    from security.tenancy import is_master
+
+    if not is_master(user):
+        accessible = {d.get("document_id") for d in docs}
+        reqs = [r for r in reqs if r.get("source_document_id") in accessible]
     plan_rows = sb.table("plans").select("*").execute().data or []
+    plan_rows = [r for r in plan_rows if owns_employee(user, r.get("employee_id"))]
     plans = [_flatten_plan_row(r) for r in plan_rows]
-    employees = sb.table("employees").select("id").execute().data or []
+    employees = filter_employees(user, sb.table("employees").select("id,employee_id").execute().data or [])
     roles = {r.get("role") for r in reqs if r.get("role")} | {p.get("role_title") for p in plans if p.get("role_title")}
 
     pending = sum(1 for p in plans if p.get("status") in ("Pending Review", "Draft", "Edited"))

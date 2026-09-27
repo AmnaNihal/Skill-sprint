@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from passlib.hash import bcrypt
 
 from database.supabase_client import get_supabase
-from schemas.models import LoginRequest, RegisterRequest
-from security.auth import create_access_token, get_current_user
+from schemas.models import LoginRequest, RegisterRequest, UserCreate
+from security.auth import create_access_token, get_current_user, require_admin
+from security.tenancy import is_master, owns_employee, owns_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -18,18 +19,62 @@ def _public_user(row: dict) -> dict:
         "role": row.get("role") or "learner",
         "employee_id": row.get("employee_id"),
         "is_active": row.get("is_active", True),
+        "is_master": is_master({"email": row.get("email")}),
     }
 
 
 @router.get("/me")
 def me(user: dict = Depends(get_current_user)):
-    return user
+    return {**user, "is_master": is_master(user)}
+
+
+@router.get("/users")
+def list_users(user: dict = Depends(require_admin)):
+    rows = (
+        get_supabase()
+        .table("users")
+        .select("id,email,display_name,role,employee_id,is_active")
+        .order("id")
+        .execute()
+        .data
+        or []
+    )
+    return [_public_user(r) for r in rows if owns_user(user, r)]
+
+
+@router.post("/users")
+def create_user(payload: UserCreate, user: dict = Depends(require_admin)):
+    """Create a user account. Only the main administrator may create administrators."""
+    sb = get_supabase()
+    role = payload.role if payload.role in ALLOWED_ROLES else "learner"
+    if not is_master(user):
+        if role == "admin":
+            raise HTTPException(403, "Only the main administrator can create administrators")
+        if payload.employee_id and not owns_employee(user, payload.employee_id):
+            raise HTTPException(403, "You can only assign your own employees")
+    existing = sb.table("users").select("id").eq("email", payload.email.lower()).limit(1).execute().data
+    if existing:
+        raise HTTPException(409, "Email already registered")
+    row = {
+        "email": payload.email.lower(),
+        "display_name": payload.full_name or payload.email.split("@")[0],
+        "password_hash": bcrypt.hash(payload.password),
+        "role": role,
+        "employee_id": payload.employee_id,
+        "is_active": True,
+    }
+    try:
+        created = (sb.table("users").insert(row).execute().data or [{}])[0]
+    except Exception as e:
+        raise HTTPException(400, f"User creation failed: {e}")
+    return _public_user(created)
 
 
 @router.post("/register")
 def register(payload: RegisterRequest):
     sb = get_supabase()
-    role = payload.role if payload.role in ALLOWED_ROLES else "learner"
+    # Self-registration always creates a learner; elevated roles are assigned by an admin.
+    role = "learner"
     try:
         existing = sb.table("users").select("id").eq("email", payload.email.lower()).limit(1).execute()
     except Exception as e:

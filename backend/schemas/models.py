@@ -24,6 +24,14 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class UserCreate(BaseModel):
+    email: str
+    password: str = Field(min_length=6)
+    full_name: str = ""
+    role: UserRole = "learner"
+    employee_id: Optional[str] = None
+
+
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

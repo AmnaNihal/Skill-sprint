@@ -1,11 +1,12 @@
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from database.supabase_client import get_supabase
 from schemas.models import EmployeeCreate, EmployeeUpdate, RequirementCreate, RoleCreate
 from security.auth import get_current_user, require_admin
-from security.tenancy import can_access, is_master
+from security.tenancy import can_access, filter_employees, is_master, owns_employee, scope_employee_id
 
 router = APIRouter(tags=["roles", "employees", "requirements"])
 
@@ -151,6 +152,7 @@ def _employee_out(row: dict, user_email: str = "", training: dict | None = None,
 def list_employees(user: dict = Depends(get_current_user)):
     sb = get_supabase()
     rows = sb.table("employees").select("*").order("employee_id").execute().data or []
+    rows = filter_employees(user, rows)
     try:
         plans = sb.table("plans").select("id,employee_id,role,status,payload,created_at").execute().data or []
     except Exception:
@@ -172,6 +174,8 @@ def get_employee(employee_id: str, user: dict = Depends(get_current_user)):
     rows = sb.table("employees").select("*").eq("employee_id", employee_id).limit(1).execute().data or []
     if not rows:
         raise HTTPException(404, "Employee not found")
+    if not owns_employee(user, employee_id):
+        raise HTTPException(403, "You can only access your own employees")
     row = rows[0]
     try:
         plans = sb.table("plans").select("id,employee_id,role,status,payload,created_at").execute().data or []
@@ -188,7 +192,7 @@ def get_employee(employee_id: str, user: dict = Depends(get_current_user)):
 @router.post("/employees")
 def create_employee(payload: EmployeeCreate, user: dict = Depends(require_admin)):
     sb = get_supabase()
-    eid = "NSF-E" + uuid.uuid4().hex[:4].upper()
+    eid = scope_employee_id(user, "NSF-E" + uuid.uuid4().hex[:4].upper())
     name = payload.full_name or payload.name or "New Employee"
     role = payload.role or payload.job_role
     if not role:
@@ -199,7 +203,7 @@ def create_employee(payload: EmployeeCreate, user: dict = Depends(require_admin)
         "role": role,
         "department": payload.department,
         "experience_level": payload.experience_level or "Beginner",
-        "joining_date": payload.joining_date,
+        "joining_date": payload.joining_date or date.today().isoformat(),
         "manager": payload.manager or payload.reporting_manager,
         "training_status": payload.training_status or "Not Started",
     }
@@ -217,6 +221,8 @@ def update_employee(employee_id: str, payload: EmployeeUpdate, user: dict = Depe
     existing = sb.table("employees").select("*").eq("employee_id", employee_id).limit(1).execute().data or []
     if not existing:
         raise HTTPException(404, "Employee not found")
+    if not owns_employee(user, employee_id):
+        raise HTTPException(403, "You can only update your own employees")
     data = payload.model_dump(exclude_unset=True, exclude_none=True)
     updates = {}
     if "full_name" in data or "name" in data:
@@ -244,6 +250,8 @@ def delete_employee(employee_id: str, user: dict = Depends(require_admin)):
     existing = sb.table("employees").select("employee_id").eq("employee_id", employee_id).limit(1).execute().data or []
     if not existing:
         raise HTTPException(404, "Employee not found")
+    if not owns_employee(user, employee_id):
+        raise HTTPException(403, "You can only delete your own employees")
     sb.table("employees").delete().eq("employee_id", employee_id).execute()
     return {"ok": True, "employee_id": employee_id}
 

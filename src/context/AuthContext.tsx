@@ -9,6 +9,7 @@ export interface AuthUser {
   full_name: string;
   role: UserRole;
   employee_id?: string;
+  is_master?: boolean;
 }
 
 interface AuthResponse {
@@ -19,6 +20,7 @@ interface AuthResponse {
     full_name: string;
     role: UserRole;
     employee_id?: string | null;
+    is_master?: boolean;
   };
 }
 
@@ -40,6 +42,7 @@ function toAuthUser(u: AuthResponse['user']): AuthUser {
     full_name: u.full_name || '',
     role: (u.role as UserRole) || 'learner',
     employee_id: u.employee_id || undefined,
+    is_master: !!u.is_master,
   };
 }
 
