@@ -380,7 +380,17 @@ def generate_plan(payload: GeneratePlanRequest, user: dict = Depends(require_adm
 
 
 @router.get("")
-def list_plans(user: dict = Depends(get_current_user)):
+def list_plans(
+    q: str | None = None,
+    employee: str | None = None,
+    role: str | None = None,
+    department: str | None = None,
+    status: str | None = None,
+    verification: str | None = None,
+    progress_min: int | None = None,
+    progress_max: int | None = None,
+    user: dict = Depends(get_current_user),
+):
     rows = (
         get_supabase()
         .table("plans")
@@ -391,7 +401,33 @@ def list_plans(user: dict = Depends(get_current_user)):
         or []
     )
     rows = [r for r in rows if can_view_employee_data(user, r.get("employee_id"))]
-    return [_flatten_plan_row(r) for r in rows]
+    plans = [_flatten_plan_row(r) for r in rows]
+
+    def keep(p: dict) -> bool:
+        if q:
+            needle = q.lower()
+            haystack = " ".join(
+                str(p.get(k) or "") for k in ("employee_name", "role_title", "department", "id")
+            ).lower()
+            if needle not in haystack:
+                return False
+        if employee and employee.lower() not in str(p.get("employee_name") or "").lower():
+            return False
+        if role and (p.get("role_title") or "") != role:
+            return False
+        if department and (p.get("department") or "") != department:
+            return False
+        if status and (p.get("status") or "") != status:
+            return False
+        if verification and (p.get("verification_status") or "") != verification:
+            return False
+        if progress_min is not None and (p.get("progress") or 0) < progress_min:
+            return False
+        if progress_max is not None and (p.get("progress") or 0) > progress_max:
+            return False
+        return True
+
+    return [p for p in plans if keep(p)]
 
 
 @router.get("/{plan_id}")

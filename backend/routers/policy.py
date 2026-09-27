@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from config.settings import get_settings
 from database.supabase_client import get_supabase
 from document_processing.chunker import chunk_document
 from document_processing.parser import DocumentValidationError, parse_document

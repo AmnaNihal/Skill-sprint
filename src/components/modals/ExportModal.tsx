@@ -1,12 +1,39 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { getToken, API_BASE } from '../../lib/api';
+import { getToken, API_BASE, api } from '../../lib/api';
 import { X, Download, FileText } from 'lucide-react';
+
+type Format = 'csv' | 'xlsx' | 'pdf' | 'json';
+
+interface ReportType {
+  key: string;
+  title: string;
+}
+
+const FALLBACK_TYPES: ReportType[] = [
+  { key: 'employee_progress', title: 'Employee Progress' },
+  { key: 'role_coverage', title: 'Role Coverage' },
+  { key: 'mandatory_training', title: 'Mandatory Training' },
+  { key: 'assessment_results', title: 'Assessment Results' },
+  { key: 'source_traceability', title: 'Source Traceability' },
+  { key: 'hallucination_flags', title: 'Hallucination Flags' },
+  { key: 'policy_coverage', title: 'Policy Coverage' },
+  { key: 'comparison', title: 'GenAI vs Python Comparison' },
+];
 
 export const ExportModal: React.FC = () => {
   const { exportModalOpen, setExportModalOpen, addToast } = useApp();
-  const [format, setFormat] = useState<'csv' | 'json'>('csv');
+  const [format, setFormat] = useState<Format>('csv');
+  const [report, setReport] = useState('employee_progress');
+  const [types, setTypes] = useState<ReportType[]>(FALLBACK_TYPES);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!exportModalOpen) return;
+    api.get<ReportType[]>('/reports/types')
+      .then(d => { if (Array.isArray(d) && d.length) setTypes(d); })
+      .catch(() => undefined);
+  }, [exportModalOpen]);
 
   if (!exportModalOpen) return null;
 
@@ -14,7 +41,7 @@ export const ExportModal: React.FC = () => {
     setBusy(true);
     try {
       const t = await getToken();
-      const res = await fetch(`${API_BASE}/reports/export?format=${format}`, {
+      const res = await fetch(`${API_BASE}/reports/export?format=${format}&report=${report}`, {
         headers: t ? { Authorization: `Bearer ${t}` } : {},
       });
       if (!res.ok) throw new Error('Export failed');
@@ -22,12 +49,12 @@ export const ExportModal: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `skillsprint_report.${format}`;
+      a.download = `skillsprint_${report}.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      addToast(`Downloading compliance report (${format.toUpperCase()})…`, 'success');
+      addToast(`Downloading ${report.replace(/_/g, ' ')} (${format.toUpperCase()})…`, 'success');
       setExportModalOpen(false);
     } catch (e) {
       addToast(e instanceof Error ? e.message : 'Export failed', 'error');
@@ -46,7 +73,7 @@ export const ExportModal: React.FC = () => {
             </div>
             <div>
               <h3 className="font-bold text-white text-base">Export Analytics Report</h3>
-              <p className="text-xs text-slate-400">Real CSV/JSON from FastAPI validation data</p>
+              <p className="text-xs text-slate-400">CSV · Excel · PDF · JSON from live validation data</p>
             </div>
           </div>
           <button
@@ -60,10 +87,25 @@ export const ExportModal: React.FC = () => {
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              Report Type
+            </label>
+            <select
+              value={report}
+              onChange={e => setReport(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+            >
+              {types.map(t => (
+                <option key={t.key} value={t.key}>{t.title}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
               Select Export Format
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              {(['csv', 'json'] as const).map(fmt => (
+            <div className="grid grid-cols-4 gap-2">
+              {(['csv', 'xlsx', 'pdf', 'json'] as const).map(fmt => (
                 <button
                   key={fmt}
                   onClick={() => setFormat(fmt)}
@@ -82,9 +124,9 @@ export const ExportModal: React.FC = () => {
 
           <div className="p-3 bg-slate-950/60 rounded-xl border border-purple-900/30 text-xs text-slate-400 space-y-1">
             <p className="font-semibold text-purple-300">Included In This Export:</p>
-            <p>• All onboarding plans + scores</p>
-            <p>• Full GenAI vs Python comparison findings</p>
-            <p>• Coverage / traceability / contradiction metrics</p>
+            <p>• Employee progress · role coverage · mandatory training</p>
+            <p>• Assessment results · source traceability · policy coverage</p>
+            <p>• Hallucination flags · GenAI vs Python comparison</p>
           </div>
 
           <div className="pt-4 flex items-center justify-end gap-3 border-t border-purple-900/30">

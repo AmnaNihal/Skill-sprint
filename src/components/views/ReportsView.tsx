@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import {
-  BarChart3, Download, TrendingUp, ShieldCheck, RefreshCw
+  BarChart3, Download, TrendingUp, ShieldCheck, RefreshCw, GitCompare
 } from 'lucide-react';
 
 interface AdminDash {
@@ -31,10 +31,27 @@ interface RoleStat {
   behind_plans: number;
 }
 
+interface CompareGroup {
+  key: string;
+  plans: number;
+  avg_progress: number;
+  avg_coverage: number;
+  avg_traceability: number;
+  verified_plans: number;
+}
+
+interface CompareResult {
+  group_by: string;
+  total_plans: number;
+  groups: CompareGroup[];
+}
+
 export const ReportsView: React.FC = () => {
   const { setExportModalOpen, addToast } = useApp();
   const [stats, setStats] = useState<AdminDash | null>(null);
   const [roleStats, setRoleStats] = useState<RoleStat[]>([]);
+  const [compare, setCompare] = useState<CompareResult | null>(null);
+  const [groupBy, setGroupBy] = useState('role');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,6 +71,16 @@ export const ReportsView: React.FC = () => {
       alive = false;
     };
   }, [addToast]);
+
+  useEffect(() => {
+    let alive = true;
+    api.get<CompareResult>(`/reports/compare?group_by=${groupBy}`)
+      .then(d => { if (alive) setCompare(d); })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [groupBy]);
 
   const matchRate = stats && stats.total_plans > 0
     ? Math.max(0, Math.min(100, stats.avg_coverage || 0))
@@ -300,6 +327,57 @@ export const ReportsView: React.FC = () => {
               <p className="text-purple-300 font-bold text-lg">{stats?.mandatory_requirements ?? 0}</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 overflow-hidden shadow-xl">
+        <div className="px-6 py-4 border-b border-purple-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <GitCompare className="w-4 h-4 text-purple-400" />
+            <div>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Training Plan Comparison</h3>
+              <p className="text-xs text-slate-400">Compare onboarding plans across roles, departments, levels &amp; document versions</p>
+            </div>
+          </div>
+          <select
+            value={groupBy}
+            onChange={e => setGroupBy(e.target.value)}
+            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+          >
+            <option value="role">Group by Role</option>
+            <option value="department">Group by Department</option>
+            <option value="experience_level">Group by Employee Level</option>
+            <option value="document_version">Group by Document Version</option>
+          </select>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-950/70 text-xs font-semibold uppercase text-slate-400">
+              <tr>
+                <th className="px-6 py-3 capitalize">{groupBy.replace(/_/g, ' ')}</th>
+                <th className="px-6 py-3">Plans</th>
+                <th className="px-6 py-3">Avg Progress</th>
+                <th className="px-6 py-3">Avg Coverage</th>
+                <th className="px-6 py-3">Avg Traceability</th>
+                <th className="px-6 py-3">Verified</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-purple-900/20">
+              {(compare?.groups || []).map(g => (
+                <tr key={g.key} className="hover:bg-purple-950/20 transition">
+                  <td className="px-6 py-3 text-white">{g.key}</td>
+                  <td className="px-6 py-3 text-slate-300">{g.plans}</td>
+                  <td className="px-6 py-3 text-purple-300">{g.avg_progress}%</td>
+                  <td className="px-6 py-3 text-emerald-400">{g.avg_coverage}%</td>
+                  <td className="px-6 py-3 text-indigo-300">{g.avg_traceability}%</td>
+                  <td className="px-6 py-3 text-emerald-300">{g.verified_plans}</td>
+                </tr>
+              ))}
+              {(!compare || compare.groups.length === 0) && (
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No plans available to compare.</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

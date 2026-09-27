@@ -1,10 +1,13 @@
 import csv
 import io
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from database.supabase_client import get_supabase
+from reporting.pdf import build_pdf
+from reporting.tabular import REPORT_TITLES, build_report
 from routers.plans import PLAN_LIST_SELECT, _fetch_plan_row, _flatten_plan_row, _normalize_plan, review_plan
 from schemas.models import ReviewDecision
 from security.auth import get_current_user, require_admin
@@ -46,45 +49,174 @@ def decide(payload: ReviewDecision, user: dict = Depends(require_admin)):
     return review_plan(payload, user)
 
 
-@router.get("/reports/export")
-def export_report(format: str = "csv", user: dict = Depends(require_admin)):
-    sb = get_supabase()
-    rows = sb.table("plans").select(PLAN_LIST_SELECT).execute().data or []
-    rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
-    plans = [_flatten_plan_row(r) for r in rows]
-    findings: list[dict] = []
+def _to_xlsx(title: str, headers: list[str], rows: list[list]) -> bytes:
+    from openpyxl import Workbook
 
-    if format == "csv":
-        buf = io.StringIO()
-        w = csv.writer(buf)
-        w.writerow(["plan_id", "employee", "role", "coverage", "traceability", "verification", "status"])
-        for p in plans:
-            w.writerow(
-                [
-                    p.get("id"),
-                    p.get("employee_name"),
-                    p.get("role_title"),
-                    p.get("coverage_score"),
-                    p.get("traceability_score"),
-                    p.get("verification_status"),
-                    p.get("status"),
-                ]
-            )
-        data = buf.getvalue()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = (title or "Report")[:31] or "Report"
+    ws.append(headers)
+    for row in rows:
+        ws.append(["" if c is None else c for c in row])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+@router.get("/reports/types")
+def report_types(user: dict = Depends(require_admin)):
+    return [{"key": key, "title": title} for key, title in REPORT_TITLES.items()]
+
+
+@router.get("/reports/export")
+def export_report(
+    format: str = "csv",
+    report: str = "employee_progress",
+    user: dict = Depends(require_admin),
+):
+    """Export a report type in CSV, Excel (xlsx), PDF, or JSON."""
+    title, headers, rows = build_report(report, user)
+    fmt = (format or "csv").lower()
+    base = f"skillsprint_{report}"
+
+    if fmt in ("xlsx", "excel"):
+        data = _to_xlsx(title, headers, rows)
+        media = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         return StreamingResponse(
             iter([data]),
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=skillsprint_report.csv"},
+            media_type=media,
+            headers={"Content-Disposition": f"attachment; filename={base}.xlsx"},
         )
 
-    import json
+    if fmt == "pdf":
+        data = build_pdf(title, headers, rows)
+        return StreamingResponse(
+            iter([data]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={base}.pdf"},
+        )
 
-    payload = {"plans": plans, "findings": findings}
+    if fmt == "json":
+        payload = {
+            "report": report,
+            "title": title,
+            "headers": headers,
+            "rows": [dict(zip(headers, r)) for r in rows],
+        }
+        return StreamingResponse(
+            iter([json.dumps(payload, default=str)]),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={base}.json"},
+        )
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(headers)
+    w.writerows(rows)
     return StreamingResponse(
-        iter([json.dumps(payload, default=str)]),
-        media_type="application/json",
-        headers={"Content-Disposition": "attachment; filename=skillsprint_report.json"},
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={base}.csv"},
     )
+
+
+@router.get("/reports/compare")
+def compare_plans(
+    group_by: str = "role",
+    role: str | None = None,
+    department: str | None = None,
+    experience_level: str | None = None,
+    document_version: str | None = None,
+    user: dict = Depends(require_admin),
+):
+    """Compare onboarding plans across roles, departments, employee levels, or document versions."""
+    sb = get_supabase()
+    select = (
+        "id,employee_id,role,status,payload->employee_name,payload->department,"
+        "payload->experience_level,payload->progress,payload->validation->summary,"
+        "payload->source_document_versions"
+    )
+    rows = sb.table("plans").select(select).order("id", desc=True).execute().data or []
+    rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
+
+    def match(p: dict) -> bool:
+        if role and (p.get("role") or "") != role:
+            return False
+        if department and (p.get("department") or "") != department:
+            return False
+        if experience_level and (p.get("experience_level") or "") != experience_level:
+            return False
+        if document_version:
+            versions = p.get("source_document_versions") or {}
+            values = versions.values() if isinstance(versions, dict) else versions
+            if str(document_version) not in {str(v) for v in values}:
+                return False
+        return True
+
+    filtered = [p for p in rows if match(p)]
+
+    def flatten(p: dict) -> dict:
+        s = p.get("summary") or {}
+        return {
+            "id": p.get("id"),
+            "employee_name": p.get("employee_name") or "",
+            "role": p.get("role") or "",
+            "department": p.get("department") or "",
+            "experience_level": p.get("experience_level") or "",
+            "progress": p.get("progress") or 0,
+            "coverage_score": s.get("coverage_score") or 0,
+            "traceability_score": s.get("traceability_score") or 0,
+            "verification_status": s.get("verification_status") or "",
+            "source_document_versions": p.get("source_document_versions") or {},
+        }
+
+    plans = [flatten(p) for p in filtered]
+    key_fn = {
+        "role": lambda p: p["role"] or "Unassigned",
+        "department": lambda p: p["department"] or "Unassigned",
+        "experience_level": lambda p: p["experience_level"] or "Unspecified",
+        "document_version": lambda p: ", ".join(
+            sorted({str(v) for v in (p["source_document_versions"].values()
+                                     if isinstance(p["source_document_versions"], dict)
+                                     else p["source_document_versions"])})
+        ) or "n/a",
+    }.get(group_by, lambda p: p["role"] or "Unassigned")
+
+    groups: dict[str, dict] = {}
+    for p in plans:
+        key = key_fn(p)
+        g = groups.setdefault(key, {"key": key, "plans": 0, "progress": [], "coverage": [], "traceability": [], "verified": 0})
+        g["plans"] += 1
+        g["progress"].append(p["progress"])
+        g["coverage"].append(p["coverage_score"])
+        g["traceability"].append(p["traceability_score"])
+        if p["verification_status"] in ("Verified", "Verified with Warning"):
+            g["verified"] += 1
+
+    out_groups = []
+    for g in sorted(groups.values(), key=lambda x: x["key"]):
+        n = g["plans"] or 1
+        out_groups.append({
+            "key": g["key"],
+            "plans": g["plans"],
+            "avg_progress": round(sum(g["progress"]) / n),
+            "avg_coverage": round(sum(g["coverage"]) / n, 1),
+            "avg_traceability": round(sum(g["traceability"]) / n, 1),
+            "verified_plans": g["verified"],
+        })
+
+    return {
+        "group_by": group_by,
+        "filters": {
+            "role": role,
+            "department": department,
+            "experience_level": experience_level,
+            "document_version": document_version,
+        },
+        "total_plans": len(plans),
+        "groups": out_groups,
+        "plans": plans,
+    }
 
 
 @router.get("/dashboard/admin")
