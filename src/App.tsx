@@ -7,6 +7,7 @@ import { LandingView } from './components/views/LandingView';
 import { AuthView } from './components/views/AuthView';
 import { DashboardView } from './components/views/DashboardView';
 import { EmployeesView } from './components/views/EmployeesView';
+import { UsersView } from './components/views/UsersView';
 import { DocumentsView } from './components/views/DocumentsView';
 import { MatrixView } from './components/views/MatrixView';
 import { GeneratePlanView } from './components/views/GeneratePlanView';
@@ -84,14 +85,21 @@ export const App: React.FC = () => {
           }
         />
         <Route
+          path="/users"
+          element={
+            <RequireAuth adminOnly>
+              <AppShell><UsersView /></AppShell>
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/employees"
           element={
             <RequireAuth adminOnly>
               <AppShell><EmployeesView /></AppShell>
             </RequireAuth>
           }
-        />
-        <Route
+        />        <Route
           path="/documents"
           element={
             <RequireAuth>

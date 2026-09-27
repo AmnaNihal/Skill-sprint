@@ -2,6 +2,7 @@ export type NavigationTab =
   | 'landing'
   | 'auth'
   | 'dashboard'
+  | 'users'
   | 'employees'
   | 'documents'
   | 'matrix'
