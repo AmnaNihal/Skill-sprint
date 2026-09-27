@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import {
-  Users, Plus, Search, Pencil, Trash2, X, GraduationCap, Building2, Calendar, UserCheck,
+  Users, Plus, Search, Pencil, Trash2, X, GraduationCap, Building2, Calendar, UserCheck, Shield,
 } from 'lucide-react';
 
 interface TrainingPlan {
@@ -49,6 +50,11 @@ const EMPTY_FORM = {
 
 export const EmployeesView: React.FC = () => {
   const { addToast } = useApp();
+  const { user } = useAuth();
+  const isMaster = !!user?.is_master;
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminForm, setAdminForm] = useState({ full_name: '', email: '', password: '', role: 'admin' });
+  const [adminSaving, setAdminSaving] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,6 +181,25 @@ export const EmployeesView: React.FC = () => {
         ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
         : 'bg-slate-800 text-slate-300 border-slate-700';
 
+  const createAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminForm.email || adminForm.password.length < 6) {
+      addToast('Email and a 6+ character password are required', 'error');
+      return;
+    }
+    setAdminSaving(true);
+    try {
+      await api.post('/auth/users', adminForm);
+      addToast(`Admin account created for ${adminForm.email}`, 'success');
+      setAdminOpen(false);
+      setAdminForm({ full_name: '', email: '', password: '', role: 'admin' });
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Failed to create admin', 'error');
+    } finally {
+      setAdminSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-16">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -188,12 +213,25 @@ export const EmployeesView: React.FC = () => {
             Maintain employee role, department, experience, joining date, and training information.
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-purple-600/30 transition ring-1 ring-purple-400/30"
-        >
-          <Plus className="w-4 h-4" /> Add Employee
-        </button>
+        <div className="flex items-center gap-3">
+          {isMaster && (
+            <button
+              onClick={() => {
+                setAdminForm({ full_name: '', email: '', password: '', role: 'admin' });
+                setAdminOpen(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-purple-900/40 text-sm font-semibold transition"
+            >
+              <Shield className="w-4 h-4 text-purple-400" /> Create Admin
+            </button>
+          )}
+          <button
+            onClick={openCreate}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-purple-600/30 transition ring-1 ring-purple-400/30"
+          >
+            <Plus className="w-4 h-4" /> Add Employee
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 p-4 flex flex-col lg:flex-row gap-3">
@@ -462,6 +500,69 @@ export const EmployeesView: React.FC = () => {
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 transition disabled:opacity-50"
                 >
                   {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Create Employee'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {adminOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-purple-800/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-5 border-b border-purple-900/30 flex items-center justify-between">
+              <h3 className="font-bold text-white text-base">Create Administrator Account</h3>
+              <button
+                onClick={() => setAdminOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={createAdmin} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Full name</label>
+                <input
+                  value={adminForm.full_name}
+                  onChange={e => setAdminForm({ ...adminForm, full_name: e.target.value })}
+                  placeholder="Company Admin"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={adminForm.email}
+                  onChange={e => setAdminForm({ ...adminForm, email: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Temporary password</label>
+                <input
+                  type="text"
+                  required
+                  minLength={6}
+                  value={adminForm.password}
+                  onChange={e => setAdminForm({ ...adminForm, password: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                This creates a company administrator who can manage only their own employees, users, documents and dashboards.
+              </p>
+              <div className="pt-3 flex items-center justify-end gap-3 border-t border-purple-900/30">
+                <button type="button" onClick={() => setAdminOpen(false)} className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={adminSaving}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold disabled:opacity-50"
+                >
+                  {adminSaving ? 'Creating…' : 'Create Admin'}
                 </button>
               </div>
             </form>

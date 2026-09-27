@@ -142,7 +142,19 @@ export const DashboardView: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
+            {isMaster && (
+              <button
+                onClick={() => {
+                  setAccount({ email: '', password: '', full_name: '', role: 'admin', employee_id: '' });
+                  setAccountOpen(true);
+                }}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-purple-900/40 text-sm font-semibold transition"
+              >
+                <Users className="w-4 h-4 text-purple-400" />
+                Create Admin
+              </button>
+            )}
             <button
               onClick={() => setUploadModalOpen(true)}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-purple-900/40 text-sm font-semibold transition"
