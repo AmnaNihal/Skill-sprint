@@ -6,7 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from database.supabase_client import get_supabase
 from schemas.models import EmployeeCreate, EmployeeUpdate, RequirementCreate, RoleCreate
 from security.auth import get_current_user, require_admin
-from security.tenancy import can_access, filter_employees, is_master, owns_employee, scope_employee_id
+from security.tenancy import (
+    can_access,
+    filter_documents,
+    filter_employees,
+    is_master,
+    owns_employee,
+    scope_employee_id,
+)
 
 router = APIRouter(tags=["roles", "employees", "requirements"])
 
@@ -74,6 +81,24 @@ def create_role(payload: RoleCreate, user: dict = Depends(require_admin)):
     # roles are derived from requirements/employees; create a placeholder requirement so role appears
     sb = get_supabase()
     rid = "ROLE-" + uuid.uuid4().hex[:6].upper()
+    # source_document_id is NOT NULL — link the baseline entry to an accessible active document.
+    docs = filter_documents(
+        user,
+        sb.table("documents").select("document_id,version,is_active,is_quarantined").execute().data or [],
+    )
+    active = [d for d in docs if d.get("is_active", True) and not d.get("is_quarantined", False)]
+    source = (active or docs or [{}])[0]
+    source_doc_id = source.get("document_id") or "MANUAL"
+    chunk_rows = (
+        sb.table("document_chunks")
+        .select("chunk_id")
+        .eq("document_id", source_doc_id)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    source_chunk_id = chunk_rows[0]["chunk_id"] if chunk_rows else f"{source_doc_id}-C001"
     try:
         sb.table("role_requirements").insert(
             {
@@ -84,10 +109,10 @@ def create_role(payload: RoleCreate, user: dict = Depends(require_admin)):
                 "mandatory": False,
                 "priority": "Medium",
                 "due_stage": "Week 1",
-                "source_document_id": None,
-                "source_document_version": None,
-                "source_section_id": None,
-                "source_chunk_id": None,
+                "source_document_id": source_doc_id,
+                "source_document_version": source.get("version") or "1.0",
+                "source_section_id": "Manual",
+                "source_chunk_id": source_chunk_id,
                 "assessment_topic": payload.title,
                 "prerequisites": [],
                 "approval_status": "Approved",
@@ -95,7 +120,7 @@ def create_role(payload: RoleCreate, user: dict = Depends(require_admin)):
         ).execute()
     except Exception as e:
         raise HTTPException(400, str(e))
-    return {"id": rid, **payload.model_dump()}
+    return {"id": rid, "source_document_id": source_doc_id, **payload.model_dump()}
 
 
 def _required_competencies(sb, role: str) -> list[str]:
