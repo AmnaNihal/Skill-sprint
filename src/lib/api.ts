@@ -1,6 +1,8 @@
 import { getToken } from './token';
 
-const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:8000';
+const API_BASE =
+  (import.meta.env.VITE_API_BASE as string) ||
+  (import.meta.env.PROD ? 'https://skills-sprint-api.vercel.app' : 'http://localhost:8000');
 
 export { getToken, API_BASE };
 
