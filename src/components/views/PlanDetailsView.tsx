@@ -62,6 +62,16 @@ interface PlanDetail {
   assessments: unknown[];
   validations: { id: string; requirement_id?: string; field_name?: string; validation_status?: string; detail?: string; result?: string }[];
   reviews: unknown[];
+  generation?: {
+    prompt_version?: string;
+    template_name?: string;
+    model?: string;
+    provider?: string;
+    generated_at?: string;
+    retries?: number;
+    retry_log?: string[];
+  };
+  audit?: { action?: string; detail?: string; requirement_id?: string; at?: string; actor?: string }[];
 }
 
 export const PlanDetailsView: React.FC = () => {
@@ -297,6 +307,54 @@ export const PlanDetailsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {(plan.generation?.model || plan.generation?.prompt_version || (plan.audit?.length || 0) > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 p-5">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">Model &amp; Prompt Logging</h3>
+            <dl className="space-y-2 text-xs">
+              {[
+                ['Model', plan.generation?.model || plan.model_used || '—'],
+                ['Provider', plan.generation?.provider || '—'],
+                ['Prompt version', plan.generation?.prompt_version || plan.prompt_version || '—'],
+                ['Template', plan.generation?.template_name || '—'],
+                ['Retries', String(plan.generation?.retries ?? 0)],
+                ['Generated at', plan.generation?.generated_at || '—'],
+              ].map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between gap-4 border-b border-purple-900/20 pb-1.5">
+                  <dt className="text-slate-400">{k}</dt>
+                  <dd className="text-slate-200 font-mono text-[11px] text-right break-all">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            {!!plan.generation?.retry_log?.length && (
+              <p className="mt-3 text-[11px] text-slate-500 font-mono break-all">
+                retry log: {plan.generation.retry_log.join(' → ')}
+              </p>
+            )}
+          </div>
+
+          <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 p-5">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">
+              Audit Trail ({(plan.audit?.length || 0)} events)
+            </h3>
+            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+              {(plan.audit || []).map((e, i) => (
+                <div key={i} className="text-xs bg-slate-950/60 rounded-lg border border-purple-900/20 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-purple-300 font-semibold">{e.action || 'event'}</span>
+                    <span className="text-[10px] text-slate-500">{e.at || ''}</span>
+                  </div>
+                  <p className="text-slate-400 mt-0.5">{e.detail || ''}{e.requirement_id ? ` · ${e.requirement_id}` : ''}</p>
+                </div>
+              ))}
+              {(!plan.audit || plan.audit.length === 0) && (
+                <p className="text-xs text-slate-500">No audit events recorded for this plan.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {allPlans.length > 1 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-2">

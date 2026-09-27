@@ -300,6 +300,16 @@ def generate_plan(payload: GeneratePlanRequest, user: dict = Depends(require_adm
     plan_n["target_completion"] = payload.target_completion
     plan_n["prompt_version"] = meta.get("prompt_version")
     plan_n["model"] = meta.get("model")
+    plan_n["generation"] = {
+        "prompt_version": meta.get("prompt_version"),
+        "template_name": meta.get("template_name"),
+        "model": meta.get("model"),
+        "provider": meta.get("provider"),
+        "generated_at": meta.get("generated_at"),
+        "retries": meta.get("retries"),
+        "retry_log": meta.get("retry_log") or [],
+    }
+    plan_n["audit"] = audit_events_from_report(report)
     plan_n["validation"] = {
         "findings": findings,
         "comparison": comparison[:200],
@@ -443,19 +453,33 @@ def get_plan(plan_id: str, user: dict = Depends(get_current_user)):
 
     all_tasks = []
     all_quizzes = []
+    all_checklists = []
+    all_assessments = []
     for m in modules:
+        mid = m.get("id") or m.get("module_id")
         for t in m.get("tasks") or []:
-            all_tasks.append({**t, "module_id": m.get("id") or m.get("module_id")})
+            all_tasks.append({**t, "module_id": mid})
         for q in m.get("quiz") or []:
-            all_quizzes.append({**q, "module_id": m.get("id") or m.get("module_id")})
+            all_quizzes.append({**q, "module_id": mid})
+        for c in m.get("checklist") or []:
+            if isinstance(c, dict):
+                all_checklists.append({**c, "module_id": mid})
+        for a in m.get("assessments") or []:
+            if isinstance(a, dict):
+                all_assessments.append({**a, "module_id": mid})
 
     return {
         **flat,
         "modules": modules,
         "tasks": all_tasks,
         "quizzes": all_quizzes,
-        "checklists": [],
-        "assessments": [],
+        "checklists": all_checklists,
+        "assessments": all_assessments,
+        "generation": payload.get("generation") or {
+            "prompt_version": payload.get("prompt_version") or flat.get("prompt_version"),
+            "model": payload.get("model") or flat.get("model_used"),
+        },
+        "audit": payload.get("audit") or validation.get("audit") or [],
         "validations": findings,
         "reviews": validation.get("reviews") or [],
         "raw_payload_keys": list(payload.keys()),

@@ -219,6 +219,38 @@ def compare_plans(
     }
 
 
+@router.get("/reports/generation-log")
+def generation_log(limit: int = 50, user: dict = Depends(require_admin)):
+    """Model & prompt logging: model, provider, prompt version, retries and audit events per plan."""
+    sb = get_supabase()
+    select = (
+        "id,employee_id,role,status,prompt_version,model,created_at,"
+        "payload->employee_name,payload->generation,payload->audit,payload->validation->summary"
+    )
+    rows = sb.table("plans").select(select).order("id", desc=True).limit(limit).execute().data or []
+    rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
+
+    entries = []
+    for r in rows:
+        gen = r.get("generation") or {}
+        entries.append({
+            "plan_id": str(r.get("id")),
+            "employee_name": r.get("employee_name") or "",
+            "role": r.get("role"),
+            "status": r.get("status"),
+            "model": r.get("model") or gen.get("model"),
+            "provider": gen.get("provider"),
+            "prompt_version": r.get("prompt_version") or gen.get("prompt_version"),
+            "template_name": gen.get("template_name"),
+            "generated_at": gen.get("generated_at") or r.get("created_at"),
+            "retries": gen.get("retries"),
+            "retry_log": gen.get("retry_log") or [],
+            "verification_status": (r.get("summary") or {}).get("verification_status"),
+            "audit_events": len(r.get("audit") or []),
+        })
+    return {"count": len(entries), "entries": entries}
+
+
 @router.get("/dashboard/admin")
 def admin_dashboard(user: dict = Depends(get_current_user)):
     sb = get_supabase()
