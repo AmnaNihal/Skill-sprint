@@ -11,8 +11,9 @@ Secrets are **never** committed — they are set as environment variables on the
 | Backend API | https://skills-sprint-api.vercel.app (`/health`) |
 
 - **Backend** is a Vercel Python function (`backend/vercel.json`, deployed from `backend/`).
-- **Frontend** is the built `dist/` uploaded via the Vercel REST API
-  (`scripts/deploy_frontend.py`) because the Vercel CLI auto-detects the FastAPI backend as a
+- **Frontend** is deployed as a **prebuilt static site** from a throwaway directory via
+  `scripts/deploy_frontend.ps1` (build `dist/` locally, add an SPA rewrite, then `vercel deploy`).
+  The Vercel CLI is not run on the repo root because it auto-detects the FastAPI backend as a
   monorepo service and refuses to combine it with the frontend build settings.
 - Backend env vars are set on Vercel (Production): Supabase + DeepSeek + `JWT_SECRET` +
   `CORS_ORIGINS=https://skills-sprint.vercel.app`.
@@ -21,9 +22,7 @@ Redeploy frontend:
 
 ```powershell
 $env:VERCEL_TOKEN = "<token>"
-$env:VITE_API_BASE = "https://skills-sprint-api.vercel.app"
-npm run build
-python scripts/deploy_frontend.py
+./scripts/deploy_frontend.ps1
 ```
 
 Redeploy backend:
