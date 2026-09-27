@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/api';
+import { ComboSelect } from '../common/ComboSelect';
 import {
   Sparkles, CheckCircle2, User, Briefcase, Shield, Cpu, RefreshCw, AlertCircle
 } from 'lucide-react';
@@ -169,31 +170,25 @@ export const GeneratePlanView: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                   Department
                 </label>
-                <input
-                  list="gen-dept-options"
+                <ComboSelect
                   value={department}
-                  onChange={e => setDepartment(e.target.value)}
+                  onChange={setDepartment}
+                  options={options.departments}
+                  placeholder="— select a department —"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
-                  placeholder="Select or type a department"
                 />
-                <datalist id="gen-dept-options">
-                  {options.departments.map(d => <option key={d} value={d} />)}
-                </datalist>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                   Location
                 </label>
-                <input
-                  list="gen-loc-options"
+                <ComboSelect
                   value={location}
-                  onChange={e => setLocation(e.target.value)}
+                  onChange={setLocation}
+                  options={options.locations}
+                  placeholder="— select a location —"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
-                  placeholder="Select or type a location"
                 />
-                <datalist id="gen-loc-options">
-                  {options.locations.map(l => <option key={l} value={l} />)}
-                </datalist>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">

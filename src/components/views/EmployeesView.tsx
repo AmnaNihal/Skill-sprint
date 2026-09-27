@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
+import { ComboSelect } from '../common/ComboSelect';
 import {
   Users, Plus, Search, Pencil, Trash2, X, GraduationCap, Building2, Calendar, UserCheck, Shield,
 } from 'lucide-react';
@@ -440,29 +441,16 @@ export const EmployeesView: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Role</label>
-                  <input
-                    list="role-options"
-                    value={form.role}
-                    onChange={e => setForm({ ...form, role: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
-                    placeholder="Select or type a role"
-                  />
-                  <datalist id="role-options">
-                    {roles.map(r => <option key={r} value={r} />)}
-                  </datalist>
+                  <ComboSelect value={form.role} onChange={v => setForm({ ...form, role: v })} options={roles} placeholder="— select a role —" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Department</label>
-                  <input
-                    list="dept-options"
+                  <ComboSelect
                     value={form.department}
-                    onChange={e => setForm({ ...form, department: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
-                    placeholder="e.g. Engineering"
+                    onChange={v => setForm({ ...form, department: v })}
+                    options={Array.from(new Set([...departments, ...options.departments]))}
+                    placeholder="— select a department —"
                   />
-                  <datalist id="dept-options">
-                    {Array.from(new Set([...departments, ...options.departments])).sort().map(d => <option key={d} value={d} />)}
-                  </datalist>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -527,16 +515,7 @@ export const EmployeesView: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Location</label>
-                  <input
-                    list="loc-options"
-                    value={form.location}
-                    onChange={e => setForm({ ...form, location: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
-                    placeholder="Select or type a location"
-                  />
-                  <datalist id="loc-options">
-                    {options.locations.map(l => <option key={l} value={l} />)}
-                  </datalist>
+                  <ComboSelect value={form.location} onChange={v => setForm({ ...form, location: v })} options={options.locations} placeholder="— select a location —" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Previous experience</label>
