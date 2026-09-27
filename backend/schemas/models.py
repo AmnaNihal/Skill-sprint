@@ -123,6 +123,18 @@ class ToggleTaskRequest(BaseModel):
     completed: bool
 
 
+class QuizSubmitRequest(BaseModel):
+    plan_id: str | int
+    quiz_id: str
+    score: float = 0.0
+
+
+class AssessmentSubmitRequest(BaseModel):
+    plan_id: str | int
+    assessment_id: str
+    score: float = 0.0
+
+
 class RegenerateRequest(BaseModel):
     plan_id: str | int
     document_id: str

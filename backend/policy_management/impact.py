@@ -21,6 +21,7 @@ def analyze_impact(document_id: str) -> dict[str, Any]:
     employees: set[str] = set()
     task_count = 0
     quiz_count = 0
+    checklist_count = 0
 
     for meta in plan_meta:
         rows = (
@@ -41,6 +42,7 @@ def analyze_impact(document_id: str) -> dict[str, Any]:
             module_ref = module.get("module_id") or module.get("id") or "?"
             hit_modules.append(module_ref)
             task_count += len(module.get("tasks") or [])
+            checklist_count += len(module.get("checklist") or [])
             for index, _quiz in enumerate(module.get("quiz") or [], 1):
                 hit_quizzes.append(f"{module_ref}-Q{index:02d}")
         if hit_modules:
@@ -65,6 +67,7 @@ def analyze_impact(document_id: str) -> dict[str, Any]:
         "affected_modules": len(module_ids),
         "affected_quizzes": quiz_count,
         "affected_tasks": task_count,
+        "affected_checklists": checklist_count,
         "affected_employees": len(employees),
         "employees": sorted(employees),
         "module_ids": module_ids,

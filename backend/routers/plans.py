@@ -12,7 +12,13 @@ from hallucination_checks.detector import flag_unsupported
 from python_validation.audit import REVIEWER_OVERRIDE, audit_events_from_report, build_audit_entry
 from python_validation.engine import validate_plan
 from python_validation.validation_context import build_context
-from schemas.models import GeneratePlanRequest, ReviewDecision, ToggleTaskRequest
+from schemas.models import (
+    AssessmentSubmitRequest,
+    GeneratePlanRequest,
+    QuizSubmitRequest,
+    ReviewDecision,
+    ToggleTaskRequest,
+)
 from security.auth import get_current_user, require_admin
 from security.tenancy import owns_employee
 
@@ -525,6 +531,160 @@ def consistency_check(plan_id: str, user: dict = Depends(require_admin)):
     payload["validation"] = validation
     sb.table("plans").update({"payload": payload, "updated_at": _now()}).eq("id", row["id"]).execute()
     return {"plan_id": str(row["id"]), "generation_model": result["meta"].get("model"), **comparison}
+
+
+@router.post("/{plan_id}/regenerate")
+def regenerate_plan(plan_id: str, user: dict = Depends(require_admin)):
+    """Human review action: fully regenerate the plan for its role and revalidate."""
+    sb = get_supabase()
+    row = _fetch_plan_row(sb, plan_id)
+    _assert_plan_access(user, row)
+    role = row.get("role") or (row.get("payload") or {}).get("role") or ""
+    stored = _normalize_plan(row.get("payload") or {})
+
+    reqs = _normalize_reqs(
+        [
+            r
+            for r in (sb.table("role_requirements").select("*").execute().data or [])
+            if r.get("role") in (role, "All Roles")
+            and (r.get("approval_status") or "Approved") != "Superseded"
+        ]
+    )
+    if not reqs:
+        raise HTTPException(400, "No requirements found for this role")
+    source_doc_ids = sorted({r["source_document_id"] for r in reqs if r.get("source_document_id")})
+    chunks = []
+    for did in source_doc_ids:
+        rows = (
+            sb.table("document_chunks")
+            .select("chunk_id,section_id,heading,text,document_id")
+            .eq("document_id", did)
+            .order("chunk_id")
+            .execute()
+            .data
+            or []
+        )
+        for c in rows:
+            chunks.append(
+                {
+                    "source_document_id": c.get("document_id"),
+                    "source_section_id": c.get("section_id") or "",
+                    "source_chunk_id": c.get("chunk_id") or "",
+                    "heading": c.get("heading") or "",
+                    "content": c.get("text") or "",
+                }
+            )
+    if not chunks:
+        raise HTTPException(400, "No source chunks available for regeneration")
+
+    try:
+        result = generate_onboarding_plan(
+            employee_name=stored.get("employee_name") or "",
+            role_title=role,
+            department=stored.get("department") or "",
+            experience_level="Beginner",
+            target_completion=stored.get("target_completion") or "30 Days",
+            joining_date="",
+            requirements=reqs,
+            source_blocks=chunks,
+        )
+    except GenerationError as e:
+        raise HTTPException(502, str(e))
+
+    plan = result["plan"]
+    meta = result["meta"]
+    plan.setdefault("role", role)
+    plan.setdefault("employee_name", stored.get("employee_name") or "")
+    plan.setdefault("department", stored.get("department") or "")
+    plan.setdefault("target_completion", stored.get("target_completion") or "30 Days")
+
+    schema_errors = validate_genai_payload(plan)
+    findings, comparison, sumry, report = _run_validation(sb, plan, role)
+    plan_n = _normalize_plan(plan)
+    plan_n["employee_name"] = stored.get("employee_name") or ""
+    plan_n["department"] = stored.get("department") or ""
+    plan_n["target_completion"] = stored.get("target_completion") or "30 Days"
+    plan_n["prompt_version"] = meta.get("prompt_version")
+    plan_n["model"] = meta.get("model")
+    previous_validation = (row.get("payload") or {}).get("validation") or {}
+    reviews = list(previous_validation.get("reviews") or [])
+    audit = audit_events_from_report(report, plan_id=row["id"])
+    audit.append(
+        build_audit_entry(
+            "plan_regenerated",
+            plan_id=row["id"],
+            actor=user.get("full_name") or user.get("email") or "",
+            detail=f"regenerated with {meta.get('model')}",
+            status=sumry["verification_status"],
+        )
+    )
+    plan_n["validation"] = {
+        "findings": findings,
+        "comparison": comparison[:200],
+        "summary": sumry,
+        "missing": report.missing_requirements,
+        "unsupported": report.unsupported_requirements,
+        "contradictions": report.contradictions,
+        "duplicates": report.duplicates,
+        "sequence_issues": report.sequence_issues,
+        "hallucinations": report.hallucinations,
+        "outdated_sources": report.outdated_sources,
+        "schema_errors": schema_errors,
+        "reviews": reviews,
+        "audit": audit,
+        "validated_at": _now(),
+    }
+    status = "Approved" if sumry["verification_status"] in ("Verified", "Verified with Warning") else "Pending Review"
+    sb.table("plans").update(
+        {
+            "payload": plan_n,
+            "status": status,
+            "model": meta.get("model"),
+            "prompt_version": meta.get("prompt_version"),
+            "updated_at": _now(),
+        }
+    ).eq("id", row["id"]).execute()
+    return {
+        "plan_id": str(row["id"]),
+        "model": meta.get("model"),
+        "verification_status": sumry["verification_status"],
+        "scores": {
+            "coverage": sumry["coverage_score"],
+            "traceability": sumry["traceability_score"],
+            "consistency": sumry["consistency_score"],
+        },
+        "modules": len(plan_n.get("modules") or []),
+    }
+
+
+@router.post("/quiz/submit")
+def submit_quiz(payload: QuizSubmitRequest, user: dict = Depends(get_current_user)):
+    sb = get_supabase()
+    row = _fetch_plan_row(sb, payload.plan_id)
+    if user.get("role") == "learner" and str(user.get("employee_id") or "") != str(row.get("employee_id") or ""):
+        raise HTTPException(403, "You can only submit quizzes for your own plan")
+    pl = _normalize_plan(row.get("payload") or {})
+    scores = dict(pl.get("quiz_scores") or {})
+    scores[str(payload.quiz_id)] = float(payload.score)
+    pl["quiz_scores"] = scores
+    sb.table("plans").update({"payload": pl, "updated_at": _now()}).eq("id", row["id"]).execute()
+    average = round(sum(scores.values()) / len(scores), 1) if scores else 0.0
+    return {"quiz_id": payload.quiz_id, "score": payload.score, "average": average, "attempts": len(scores)}
+
+
+@router.post("/assessment/submit")
+def submit_assessment(payload: AssessmentSubmitRequest, user: dict = Depends(get_current_user)):
+    sb = get_supabase()
+    row = _fetch_plan_row(sb, payload.plan_id)
+    if user.get("role") == "learner" and str(user.get("employee_id") or "") != str(row.get("employee_id") or ""):
+        raise HTTPException(403, "You can only submit assessments for your own plan")
+    pl = _normalize_plan(row.get("payload") or {})
+    scores = dict(pl.get("assessment_scores") or {})
+    scores[str(payload.assessment_id)] = float(payload.score)
+    pl["assessment_scores"] = scores
+    sb.table("plans").update({"payload": pl, "updated_at": _now()}).eq("id", row["id"]).execute()
+    average = round(sum(scores.values()) / len(scores), 1) if scores else 0.0
+    return {"assessment_id": payload.assessment_id, "score": payload.score, "average": average, "attempts": len(scores)}
 
 
 @router.post("/review")

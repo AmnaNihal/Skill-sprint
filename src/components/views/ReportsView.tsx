@@ -19,9 +19,22 @@ interface AdminDash {
   plans_by_status: Record<string, number>;
 }
 
+interface RoleStat {
+  role: string;
+  requirements: number;
+  mandatory_requirements: number;
+  plans: number;
+  employees: number;
+  avg_progress: number;
+  avg_coverage: number;
+  verified_plans: number;
+  behind_plans: number;
+}
+
 export const ReportsView: React.FC = () => {
   const { setExportModalOpen, addToast } = useApp();
   const [stats, setStats] = useState<AdminDash | null>(null);
+  const [roleStats, setRoleStats] = useState<RoleStat[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,6 +49,7 @@ export const ReportsView: React.FC = () => {
       .finally(() => {
         if (alive) setLoading(false);
       });
+    api.get<RoleStat[]>('/dashboard/roles').then(d => { if (alive) setRoleStats(d); }).catch(() => undefined);
     return () => {
       alive = false;
     };
@@ -117,6 +131,51 @@ export const ReportsView: React.FC = () => {
             <span className="text-lg text-amber-400"> / {stats?.flagged_items ?? 0}</span>
           </p>
           <p className="text-[11px] text-slate-400 mt-1">Needs human sign-off</p>
+        </div>
+      </div>
+
+      <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 overflow-hidden shadow-xl">
+        <div className="px-6 py-4 border-b border-purple-900/30 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Role Dashboard</h3>
+            <p className="text-xs text-slate-400">Onboarding requirements &amp; completion statistics by job role</p>
+          </div>
+          <span className="text-xs text-slate-500">{roleStats.length} roles</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-950/70 text-xs font-semibold uppercase text-slate-400">
+              <tr>
+                <th className="px-6 py-3">Role</th>
+                <th className="px-6 py-3">Requirements</th>
+                <th className="px-6 py-3">Mandatory</th>
+                <th className="px-6 py-3">Employees</th>
+                <th className="px-6 py-3">Plans</th>
+                <th className="px-6 py-3">Avg Progress</th>
+                <th className="px-6 py-3">Avg Coverage</th>
+                <th className="px-6 py-3">Verified</th>
+                <th className="px-6 py-3">Behind</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-purple-900/20">
+              {roleStats.filter(r => r.plans > 0 || r.requirements >= 5).slice(0, 25).map(r => (
+                <tr key={r.role} className="hover:bg-purple-950/20 transition">
+                  <td className="px-6 py-3 text-white">{r.role}</td>
+                  <td className="px-6 py-3 text-slate-300">{r.requirements}</td>
+                  <td className="px-6 py-3 text-amber-300">{r.mandatory_requirements}</td>
+                  <td className="px-6 py-3 text-slate-300">{r.employees}</td>
+                  <td className="px-6 py-3 text-slate-300">{r.plans}</td>
+                  <td className="px-6 py-3 text-purple-300">{r.avg_progress}%</td>
+                  <td className="px-6 py-3 text-emerald-400">{r.avg_coverage}%</td>
+                  <td className="px-6 py-3 text-emerald-300">{r.verified_plans}</td>
+                  <td className="px-6 py-3 text-rose-300">{r.behind_plans}</td>
+                </tr>
+              ))}
+              {roleStats.length === 0 && (
+                <tr><td colSpan={9} className="px-6 py-8 text-center text-slate-500">No role statistics yet.</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
