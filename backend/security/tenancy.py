@@ -36,14 +36,29 @@ def scope_id(user: dict, base: str) -> str:
     return base if key is None else f"{key}-{base}"
 
 
+def _owner_prefix(value) -> str:
+    s = str(value or "").strip()
+    return s.split("-", 1)[0] if s else ""
+
+
 def can_access(user: dict, document_id: str | None) -> bool:
-    """True if the user may access the given document id."""
+    """True if the user may access the given document id.
+
+    Learners can additionally access documents belonging to the company of their own linked
+    employee (so their curriculum/requirements are not hidden).
+    """
     if is_master(user):
         return True
-    key = owner_key(user)
-    if not key or not document_id:
+    if not document_id:
         return False
-    return str(document_id).startswith(f"{key}-")
+    doc = str(document_id)
+    key = owner_key(user)
+    if key and doc.startswith(f"{key}-"):
+        return True
+    emp_key = _owner_prefix(user.get("employee_id"))
+    if emp_key and doc.startswith(f"{emp_key}-"):
+        return True
+    return False
 
 
 def filter_documents(user: dict, documents: list[dict]) -> list[dict]:
