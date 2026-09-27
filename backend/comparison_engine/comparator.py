@@ -38,6 +38,8 @@ def summary(report: ValidationReport) -> dict[str, Any]:
         "duplicate_count": len(report.duplicates),
         "sequence_issue_count": len(report.sequence_issues),
         "hallucination_count": len(report.hallucinations),
+        "outdated_source_count": len(getattr(report, "outdated_sources", [])),
+        "schema_error_count": len(getattr(report, "schema_errors", [])),
         "verification_status": report.verification_status,
         "status_counts": status_counts,
         "mandatory_total": report.mandatory_total,

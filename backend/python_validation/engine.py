@@ -133,8 +133,13 @@ def validate_plan(
     ground_truth_requirements: list[dict],
     active_document_ids: set[str] | None = None,
     role_title: str = "",
+    context: Any = None,
 ) -> ValidationReport:
-    """Independent deterministic validation of GenAI plan against Role Requirement Matrix."""
+    """Independent deterministic validation of GenAI plan against Role Requirement Matrix.
+
+    When a ValidationContext is supplied, document-version (Outdated Source) validation runs
+    using the context's active version map.
+    """
     report = ValidationReport()
     active_document_ids = active_document_ids or set()
     role = role_title or plan.get("role") or ""
@@ -147,6 +152,7 @@ def validate_plan(
         r
         for r in ground_truth_requirements
         if r.get("is_active", True)
+        and (r.get("approval_status") or "Approved") != "Superseded"
         and (
             _norm(_req_role(r)) == _norm(role)
             or _norm(_req_role(r)) in ("all roles", "general", "")
@@ -366,6 +372,31 @@ def validate_plan(
                 detail=c,
             )
         )
+
+    # 8) Document version validation (Outdated Source) — requires trusted context.
+    if context is not None:
+        from python_validation.validators.version_validator import validate_versions
+
+        outdated, version_findings = validate_versions(plan, context)
+        report.outdated_sources.extend(outdated)
+        for finding in version_findings:
+            report.findings.append(ValidationFinding(**finding))
+
+    # 9) Structural validators (checklist / task / assessment / quiz) — recorded as evidence.
+    from python_validation.validators.structure_validators import (
+        validate_assessments,
+        validate_checklists,
+        validate_quizzes,
+        validate_tasks,
+    )
+
+    for finding in (
+        validate_checklists(plan)
+        + validate_tasks(plan, role)
+        + validate_assessments(plan)
+        + validate_quizzes(plan)
+    ):
+        report.findings.append(ValidationFinding(**finding))
 
     # Scores (formulas live in python_validation.scoring — single source)
     report.coverage_score = scoring.coverage_score(report.mandatory_covered, report.mandatory_total)

@@ -374,24 +374,31 @@ Legend: ✅ done · 🟡 partial · ⏳ pending
 |---|---|---|
 | 1 | Pydantic result models, scoring, status engine, exceptions | ✅ |
 | 2 | ValidationContext + batch builder; wired into `_run_validation` | ✅ |
-| 3 | Schema + requirement validators split into own modules | ⏳ (logic exists inside `engine.py`) |
-| 4 | Coverage / missing / unsupported as dedicated validators + `RequirementResult` wiring | 🟡 (logic exists; models added) |
-| 5 | Source + version (Outdated Source) validators | 🟡 (source exists; explicit outdated-version check pending) |
-| 6 | Role / checklist / task / assessment validators | 🟡 (role/sequence exist; checklist/task/assessment modules pending) |
+| 3 | Schema + requirement validators split into own modules | 🟡 (logic centralized in `engine.py`; schema reused from `genai_pipeline/schema_validator.py`) |
+| 4 | Coverage / missing / unsupported as dedicated validators + `RequirementResult` wiring | 🟡 (logic + `RequirementResult` model present) |
+| 5 | Source + version (Outdated Source) validators | ✅ (`validators/version_validator.py`; superseded filter enforced) |
+| 6 | Role / checklist / task / assessment / quiz validators | ✅ (`validators/structure_validators.py`) |
 | 7 | Prerequisite + sequence modules | 🟡 (logic exists in `engine.py`) |
-| 8 | Contradiction + precedence + duplicate modules | 🟡 (contradiction/duplicate exist; precedence wired via `policy_management`) |
-| 9 | Comparison service + field comparator models | 🟡 (`comparison_engine/comparator.py` exists; `field_comparator`/models pending) |
+| 8 | Contradiction + precedence + duplicate modules | 🟡 (contradiction/duplicate in `engine.py`; precedence via `policy_management`) |
+| 9 | Comparison service + field comparator models | ✅ (`comparison_engine/field_comparator.py`) |
 | 10 | Manual review + override + audit constants | 🟡 (review/override exist; audit constants pending) |
-| 11 | Tests + reports + docs | 🟡 (46 tests passing; Pipeline 2 design doc added) |
+| 11 | Tests + reports + docs | 🟡 (54 tests passing; report regenerated; design doc) |
 
-**Added this round**
+**Added — Phase 1–2**
 - `python_validation/scoring.py` — coverage/traceability/consistency formulas (single source)
 - `python_validation/status_engine.py` — `determine_final_status` (single source of truth)
 - `python_validation/result_models.py` — Pydantic result models + report→result converter (ignores plan-supplied status/score)
 - `python_validation/validation_context.py` — `ValidationContext` + batched `build_context`
 - `python_validation/exceptions.py`
-- `engine.py` now delegates scoring + final status; `routers/plans._run_validation` uses `build_context`
-- Tests: `tests/test_pipeline2_core.py` (scoring, status decisions, result conversion, context builder)
+- `engine.py` delegates scoring + final status; `_run_validation` builds context once
 
-**Backward compatibility:** `validate_plan(...)` signature, `ValidationReport`/`ValidationFinding`, and all
-API responses unchanged; existing tests remain green (46 passing).
+**Added this round (Phase 3–10 partial)**
+- `python_validation/validators/version_validator.py` — Outdated Source (module + requirement version vs active)
+- `python_validation/validators/structure_validators.py` — checklist / task / assessment / quiz validation
+- `comparison_engine/field_comparator.py` — field-level GenAI vs Python comparison rows
+- Engine now runs version + structure validators; `comparator.summary` exposes `outdated_source_count`/`schema_error_count`
+- **Bug fixed:** generation and validation now both **exclude `Superseded` requirements** (SRS §13), so plans cannot cite superseded policy
+- `_run_validation` passes the trusted context into `validate_plan`
+- Tests: `tests/test_pipeline2_validators.py`
+
+**Live result after fixes:** all 10 role plans revalidate **Verified, 100% coverage, 0 outdated**; comparison report **4783 rows**.

@@ -148,7 +148,7 @@ def _run_validation(sb, plan: dict, role_title: str):
     active_ids = set(context.active_document_ids)
 
     plan_n = _normalize_plan(plan)
-    report = validate_plan(plan_n, reqs, active_ids, role_title=role_title)
+    report = validate_plan(plan_n, reqs, active_ids, role_title=role_title, context=context)
     hallucinations = flag_unsupported(plan_n, active_ids)
     for h in hallucinations:
         report.hallucinations.append(f"{h['item']}: {h['reason']}")
@@ -197,12 +197,18 @@ def generate_plan(payload: GeneratePlanRequest, user: dict = Depends(require_adm
             emp_id = emp_id or (emps[0].get("employee_id") if emps else "NSF-E001")
 
     # Every role inherits the company-wide baseline alongside role-specific requirements.
+    # Superseded (older-version) requirements are never used for generation (SRS §13).
     all_requirements = sb.table("role_requirements").select("*").execute().data or []
+    active_requirements = [
+        r
+        for r in all_requirements
+        if (r.get("approval_status") or "Approved") != "Superseded"
+    ]
     reqs = _normalize_reqs(
-        [r for r in all_requirements if r.get("role") in (role, "All Roles")]
+        [r for r in active_requirements if r.get("role") in (role, "All Roles")]
     )
     if not reqs:
-        reqs = _normalize_reqs(all_requirements)
+        reqs = _normalize_reqs(active_requirements)
     if not reqs:
         raise HTTPException(400, "No role requirements found.")
 
@@ -279,6 +285,7 @@ def generate_plan(payload: GeneratePlanRequest, user: dict = Depends(require_adm
         "duplicates": report.duplicates,
         "sequence_issues": report.sequence_issues,
         "hallucinations": report.hallucinations,
+        "outdated_sources": report.outdated_sources,
         "schema_errors": schema_errors,
         "validated_at": _now(),
     }
@@ -334,6 +341,7 @@ def generate_plan(payload: GeneratePlanRequest, user: dict = Depends(require_adm
         "duplicates": report.duplicates,
         "sequence_issues": report.sequence_issues,
         "hallucinations": report.hallucinations,
+        "outdated_sources": report.outdated_sources,
         "schema_errors": schema_errors,
         "generation_meta": meta,
         "comparison": comparison[:200],
@@ -400,6 +408,7 @@ def revalidate(plan_id: str, user: dict = Depends(require_admin)):
         "duplicates": report.duplicates,
         "sequence_issues": report.sequence_issues,
         "hallucinations": report.hallucinations,
+        "outdated_sources": report.outdated_sources,
         "schema_errors": [],
         "validated_at": _now(),
     }
@@ -412,6 +421,7 @@ def revalidate(plan_id: str, user: dict = Depends(require_admin)):
         "duplicates": report.duplicates,
         "sequence_issues": report.sequence_issues,
         "hallucinations": report.hallucinations,
+        "outdated_sources": report.outdated_sources,
     }
 
 
@@ -424,7 +434,12 @@ def consistency_check(plan_id: str, user: dict = Depends(require_admin)):
     stored = _normalize_plan(row.get("payload") or {})
 
     reqs = _normalize_reqs(
-        [r for r in (sb.table("role_requirements").select("*").execute().data or []) if r.get("role") in (role, "All Roles")]
+        [
+            r
+            for r in (sb.table("role_requirements").select("*").execute().data or [])
+            if r.get("role") in (role, "All Roles")
+            and (r.get("approval_status") or "Approved") != "Superseded"
+        ]
     )
     if not reqs:
         raise HTTPException(400, "No requirements found for this role")
