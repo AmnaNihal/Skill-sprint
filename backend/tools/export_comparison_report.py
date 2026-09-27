@@ -23,15 +23,24 @@ OUT_DIR = BACKEND_DIR.parent / "reports"
 
 def main() -> None:
     sb = get_supabase()
-    rows = sb.table("plans").select("id,role,payload").execute().data or []
+    plans = sb.table("plans").select("id,role").execute().data or []
     comparison_rows: list[dict] = []
-    for row in rows:
-        validation = (row.get("payload") or {}).get("validation") or {}
-        for item in validation.get("comparison") or []:
+    for plan in plans:
+        rows = (
+            sb.table("plans")
+            .select("payload->validation->comparison")
+            .eq("id", plan.get("id"))
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        items = (rows[0].get("comparison") if rows else []) or []
+        for item in items:
             comparison_rows.append(
                 {
-                    "plan_id": str(row.get("id")),
-                    "role": item.get("role") or row.get("role") or "",
+                    "plan_id": str(plan.get("id")),
+                    "role": item.get("role") or plan.get("role") or "",
                     "requirement_id": item.get("requirement_id"),
                     "field": item.get("field_name"),
                     "genai_value": item.get("genai_value"),
