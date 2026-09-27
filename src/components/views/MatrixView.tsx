@@ -23,6 +23,7 @@ interface ApiRequirement {
   source_section_id?: string;
   requirement_type?: string;
   due_stage?: string;
+  assessment_topic?: string;
 }
 
 export const MatrixView: React.FC = () => {
@@ -264,15 +265,18 @@ export const MatrixView: React.FC = () => {
                 <th className="px-6 py-4">Req ID & Category</th>
                 <th className="px-6 py-4">Title & Description</th>
                 <th className="px-6 py-4">Target Role</th>
+                <th className="px-6 py-4">Competency</th>
+                <th className="px-6 py-4">Mandatory/Optional</th>
                 <th className="px-6 py-4">Priority</th>
-                <th className="px-6 py-4">Compliance</th>
                 <th className="px-6 py-4">Source Doc</th>
+                <th className="px-6 py-4">Source Section</th>
+                <th className="px-6 py-4">Assessment</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-purple-900/20">
               {loading && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
+                  <td colSpan={9} className="px-6 py-10 text-center text-slate-400">
                     <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
                     Loading requirement matrix…
                   </td>
@@ -304,8 +308,8 @@ export const MatrixView: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${getPriorityBadge(req.priority)}`}>
-                        {req.priority}
+                      <span className="text-xs text-slate-300 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60">
+                        {req.competency || req.category || '—'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -320,8 +324,23 @@ export const MatrixView: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${getPriorityBadge(req.priority)}`}>
+                        {req.priority}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-xs font-mono text-purple-300 bg-slate-950 px-2 py-1 rounded border border-purple-900/40">
                         {req.source_document_id || '—'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-xs font-mono text-slate-300">
+                        {req.source_section_id || '—'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 max-w-[220px]">
+                      <span className="text-xs text-slate-300 line-clamp-2">
+                        {req.assessment_topic || '—'}
                       </span>
                     </td>
                   </tr>
