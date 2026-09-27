@@ -9,6 +9,15 @@ from genai_pipeline.generator import _call_deepseek, _call_gemini_with_model_fal
 
 PROMPT_FILE = Path(__file__).resolve().parent.parent / "prompt_templates" / "requirement_extraction_v1.txt"
 
+_ROLE_DESC_RE = re.compile(r"role\s+description\s*[-–:]\s*(.+)$", re.I)
+
+
+def _role_from_title(title: str | None) -> str | None:
+    if not title:
+        return None
+    match = _ROLE_DESC_RE.search(str(title))
+    return match.group(1).strip() if match else None
+
 MANDATORY_PATTERNS = [
     r"\bmust\b", r"\bshall\b", r"\bis required to\b", r"\bare required to\b",
     r"\bmandatory\b", r"\brequired\b", r"\bonly authorized\b", r"\bforbidden\b",
@@ -79,6 +88,9 @@ def extract_requirements_with_ai(
     """Read every parsed section and return source-cited AI requirement suggestions."""
     settings = get_settings()
     role_hints = role_hints or []
+    doc_role = _role_from_title(title)
+    if doc_role and doc_role not in role_hints:
+        role_hints = [doc_role, *role_hints]
     source_sections = [
         {
             "source_section_id": getattr(section, "section_id", None) or section.get("section_id", ""),
@@ -124,9 +136,9 @@ def extract_requirements_with_ai(
             source_section_id = next(iter(section_ids))
         if not description or source_section_id not in section_ids:
             continue
-        role = str(item.get("role") or "All Roles")
+        role = str(item.get("role") or doc_role or "All Roles")
         if role not in allowed_roles:
-            role = "All Roles"
+            role = doc_role or "All Roles"
         req_type = str(item.get("requirement_type") or "Must Know")
         mandatory = bool(item.get("mandatory", req_type.startswith("Must")))
         extracted.append(
@@ -160,6 +172,9 @@ def extract_requirements(
     results: list[dict] = []
     counter = 1
     role_hints = role_hints or []
+    doc_role = _role_from_title(title)
+    if doc_role and doc_role not in role_hints:
+        role_hints = [doc_role, *role_hints]
 
     for sec in sections:
         sec_id = getattr(sec, "section_id", None) or sec.get("section_id", "")
@@ -187,7 +202,7 @@ def extract_requirements(
             results.append(
                 {
                     "id": rid,
-                    "role_title": role if role != "General" else (role_hints[0] if role_hints else "All Roles"),
+                    "role_title": role if role != "General" else (doc_role or (role_hints[0] if role_hints else "All Roles")),
                     "requirement_type": req_type,
                     "mandatory": mandatory,
                     "priority": _priority_for(req_type, mandatory),

@@ -16,6 +16,15 @@ from security.tenancy import (
     scope_employee_id,
 )
 
+_ROLE_DESC_RE = __import__("re").compile(r"role\s+description\s*[-–:]\s*(.+)$", __import__("re").I)
+
+
+def _role_from_document(title: str | None) -> str | None:
+    if not title:
+        return None
+    match = _ROLE_DESC_RE.search(str(title))
+    return match.group(1).strip() if match else None
+
 router = APIRouter(tags=["roles", "employees", "requirements"])
 
 VALID_PRIORITIES = {"Critical", "High", "Medium", "Low"}
@@ -67,7 +76,7 @@ def meta_options(user: dict = Depends(get_current_user)):
     with ThreadPoolExecutor(max_workers=4) as pool:
         f_reqs = pool.submit(lambda: sb.table("role_requirements").select("role,competency,source_document_id").execute().data or [])
         f_emps = pool.submit(lambda: sb.table("employees").select("role,department").execute().data or [])
-        f_docs = pool.submit(lambda: sb.table("documents").select("department").execute().data or [])
+        f_docs = pool.submit(lambda: sb.table("documents").select("department,category,title").execute().data or [])
         f_users = pool.submit(lambda: sb.table("users").select("display_name,email,role,employee_id,id").execute().data or [])
         req_rows = f_reqs.result()
         emp_rows = f_emps.result()
@@ -91,6 +100,11 @@ def meta_options(user: dict = Depends(get_current_user)):
     for d in filter_documents(user, doc_rows):
         if d.get("department"):
             departments.add(d["department"])
+        if d.get("category"):
+            departments.add(d["category"])
+        role_from_doc = _role_from_document(d.get("title"))
+        if role_from_doc:
+            roles.add(role_from_doc)
 
     experience = ["Beginner", "Intermediate", "Advanced"]
     targets = ["Day 1", "Week 1", "Week 2", "First 30 Days", "First 60 Days", "First 90 Days"]

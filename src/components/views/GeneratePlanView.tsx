@@ -22,7 +22,7 @@ interface GenerateResult {
 export const GeneratePlanView: React.FC = () => {
   const { addToast } = useApp();
   const navigate = useNavigate();
-  const [employeeName, setEmployeeName] = useState('Alice Johnson');
+  const [employeeName, setEmployeeName] = useState('');
   const [roleTitle, setRoleTitle] = useState('');
   const [department, setDepartment] = useState('');
   const [targetCompletion, setTargetCompletion] = useState('First 90 Days');
