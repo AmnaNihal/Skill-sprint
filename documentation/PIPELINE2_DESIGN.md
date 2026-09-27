@@ -374,15 +374,15 @@ Legend: ✅ done · 🟡 partial · ⏳ pending
 |---|---|---|
 | 1 | Pydantic result models, scoring, status engine, exceptions | ✅ |
 | 2 | ValidationContext + batch builder; wired into `_run_validation` | ✅ |
-| 3 | Schema + requirement validators split into own modules | 🟡 (logic centralized in `engine.py`; schema reused from `genai_pipeline/schema_validator.py`) |
+| 3 | Schema + requirement validators split into own modules | ✅ (`validators/schema_validator.py`; requirement logic in `engine.py`) |
 | 4 | Coverage / missing / unsupported as dedicated validators + `RequirementResult` wiring | 🟡 (logic + `RequirementResult` model present) |
 | 5 | Source + version (Outdated Source) validators | ✅ (`validators/version_validator.py`; superseded filter enforced) |
-| 6 | Role / checklist / task / assessment / quiz validators | ✅ (`validators/structure_validators.py`) |
-| 7 | Prerequisite + sequence modules | 🟡 (logic exists in `engine.py`) |
-| 8 | Contradiction + precedence + duplicate modules | 🟡 (contradiction/duplicate in `engine.py`; precedence via `policy_management`) |
+| 6 | Role / checklist / task / assessment / quiz validators | ✅ (`validators/role_validator.py`, `validators/structure_validators.py`) |
+| 7 | Prerequisite + sequence modules | ✅ (`validators/sequence_validator.py`) |
+| 8 | Contradiction + precedence + duplicate modules | ✅ (`validators/contradiction_validator.py`, `validators/duplicate_validator.py`, precedence via `policy_management`) |
 | 9 | Comparison service + field comparator models | ✅ (`comparison_engine/field_comparator.py`) |
 | 10 | Manual review + override + audit constants | 🟡 (review/override exist; audit constants pending) |
-| 11 | Tests + reports + docs | 🟡 (54 tests passing; report regenerated; design doc) |
+| 11 | Tests + reports + docs | ✅ (54 tests; validation + comparison reports; design + evidence docs) |
 
 **Added — Phase 1–2**
 - `python_validation/scoring.py` — coverage/traceability/consistency formulas (single source)
