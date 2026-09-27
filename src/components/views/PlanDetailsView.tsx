@@ -65,11 +65,12 @@ interface PlanDetail {
 }
 
 export const PlanDetailsView: React.FC = () => {
-  const { plans, setPlanReviewModalOpen, setQuizModalOpen, setSelectedPlanId, addToast } = useApp();
+  const { setPlanReviewModalOpen, setQuizModalOpen, setSelectedPlanId, addToast } = useApp();
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
   const [plan, setPlan] = useState<PlanDetail | null>(null);
   const [allPlans, setAllPlans] = useState<{ id: string; employee_name: string; role_title: string; status: string }[]>([]);
+  const [listLoaded, setListLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'modules' | 'tasks' | 'quizzes' | 'citations' | 'validation'>('modules');
@@ -79,17 +80,18 @@ export const PlanDetailsView: React.FC = () => {
   useEffect(() => {
     api.get<{ id: string; employee_name: string; role_title: string; status: string }[]>('/plans')
       .then(setAllPlans)
-      .catch(() => setAllPlans([]));
+      .catch(() => setAllPlans([]))
+      .finally(() => setListLoaded(true));
   }, []);
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
     setError('');
-    const id = planId || allPlans[0]?.id || plans[0]?.id;
+    const id = planId || allPlans[0]?.id;
     if (!id) {
       setLoading(false);
-      setError('No onboarding plan selected.');
+      if (listLoaded) setError('No onboarding plans yet. Generate a plan first.');
       return;
     }
     api.get<PlanDetail>(`/plans/${id}`)
@@ -108,7 +110,7 @@ export const PlanDetailsView: React.FC = () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planId, plans.length]);
+  }, [planId, allPlans, listLoaded]);
 
   const selectedModule =
     plan?.modules.find(m => m.id === selectedModuleId) || plan?.modules[0] || null;

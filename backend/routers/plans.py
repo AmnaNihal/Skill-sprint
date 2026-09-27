@@ -23,6 +23,13 @@ def _assert_plan_access(user: dict, row: dict) -> None:
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 
+# Lightweight projection: avoids selecting the full (large) plan payload which can time out.
+PLAN_LIST_SELECT = (
+    "id,employee_id,role,status,prompt_version,model,created_at,updated_at,source_versions,"
+    "payload->employee_name,payload->department,payload->target_completion,payload->progress,"
+    "payload->validation->summary"
+)
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -116,17 +123,22 @@ def _plan_progress(payload: dict) -> int:
 def _flatten_plan_row(row: dict) -> dict:
     payload = row.get("payload") or {}
     validation = payload.get("validation") or {}
-    summary = validation.get("summary") or {}
+    summary = validation.get("summary") or row.get("summary") or {}
+    employee_name = payload.get("employee_name") or row.get("employee_name") or ""
+    role_title = row.get("role") or payload.get("role") or ""
+    department = payload.get("department") or row.get("department") or ""
+    target_completion = payload.get("target_completion") or row.get("target_completion") or "30 Days"
+    progress_value = _plan_progress(payload) if payload else (row.get("progress") or 0)
     return {
         "id": str(row.get("id")),
         "employee_id": row.get("employee_id"),
-        "employee_name": payload.get("employee_name") or "",
-        "role_title": row.get("role") or payload.get("role") or "",
-        "role": row.get("role") or payload.get("role") or "",
-        "department": payload.get("department") or "",
-        "target_completion": payload.get("target_completion") or "30 Days",
+        "employee_name": employee_name,
+        "role_title": role_title,
+        "role": role_title,
+        "department": department,
+        "target_completion": target_completion,
         "status": row.get("status") or "Draft",
-        "progress": _plan_progress(payload),
+        "progress": progress_value,
         "verification_status": summary.get("verification_status") or payload.get("verification_status") or "",
         "coverage_score": summary.get("coverage_score") or payload.get("coverage_score") or 0,
         "traceability_score": summary.get("traceability_score") or payload.get("traceability_score") or 0,
@@ -363,7 +375,15 @@ def generate_plan(payload: GeneratePlanRequest, user: dict = Depends(require_adm
 
 @router.get("")
 def list_plans(user: dict = Depends(get_current_user)):
-    rows = get_supabase().table("plans").select("*").order("created_at", desc=True).execute().data or []
+    rows = (
+        get_supabase()
+        .table("plans")
+        .select(PLAN_LIST_SELECT)
+        .order("id", desc=True)
+        .execute()
+        .data
+        or []
+    )
     rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
     return [_flatten_plan_row(r) for r in rows]
 

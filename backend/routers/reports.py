@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from database.supabase_client import get_supabase
-from routers.plans import _fetch_plan_row, _flatten_plan_row, _normalize_plan, review_plan
+from routers.plans import PLAN_LIST_SELECT, _fetch_plan_row, _flatten_plan_row, _normalize_plan, review_plan
 from schemas.models import ReviewDecision
 from security.auth import get_current_user, require_admin
 from security.tenancy import filter_documents, filter_employees, owns_employee
@@ -31,7 +31,7 @@ def get_validation(plan_id: str, user: dict = Depends(get_current_user)):
 
 @router.get("/reviews/queue")
 def review_queue(status: str = "Pending Review", user: dict = Depends(require_admin)):
-    rows = get_supabase().table("plans").select("*").order("created_at", desc=True).execute().data or []
+    rows = get_supabase().table("plans").select(PLAN_LIST_SELECT).order("id", desc=True).execute().data or []
     rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
     mapped = [_flatten_plan_row(r) for r in rows]
     if status in ("Pending", "Pending Review"):
@@ -49,33 +49,14 @@ def decide(payload: ReviewDecision, user: dict = Depends(require_admin)):
 @router.get("/reports/export")
 def export_report(format: str = "csv", user: dict = Depends(require_admin)):
     sb = get_supabase()
-    rows = sb.table("plans").select("*").execute().data or []
+    rows = sb.table("plans").select(PLAN_LIST_SELECT).execute().data or []
     rows = [r for r in rows if owns_employee(user, r.get("employee_id"))]
     plans = [_flatten_plan_row(r) for r in rows]
-    findings = []
-    for r in rows:
-        v = (r.get("payload") or {}).get("validation") or {}
-        for f in v.get("findings") or []:
-            findings.append({"plan_id": str(r.get("id")), **f})
+    findings: list[dict] = []
 
     if format == "csv":
         buf = io.StringIO()
         w = csv.writer(buf)
-        w.writerow(["plan_id", "requirement_id", "field", "genai", "python", "result", "status", "detail"])
-        for f in findings:
-            w.writerow(
-                [
-                    f.get("plan_id"),
-                    f.get("requirement_id"),
-                    f.get("field_name"),
-                    f.get("genai_value"),
-                    f.get("python_value"),
-                    f.get("result"),
-                    f.get("validation_status"),
-                    f.get("detail"),
-                ]
-            )
-        w.writerow([])
         w.writerow(["plan_id", "employee", "role", "coverage", "traceability", "verification", "status"])
         for p in plans:
             w.writerow(
@@ -116,7 +97,7 @@ def admin_dashboard(user: dict = Depends(get_current_user)):
     if not is_master(user):
         accessible = {d.get("document_id") for d in docs}
         reqs = [r for r in reqs if r.get("source_document_id") in accessible]
-    plan_rows = sb.table("plans").select("*").execute().data or []
+    plan_rows = sb.table("plans").select(PLAN_LIST_SELECT).execute().data or []
     plan_rows = [r for r in plan_rows if owns_employee(user, r.get("employee_id"))]
     plans = [_flatten_plan_row(r) for r in plan_rows]
     employees = filter_employees(user, sb.table("employees").select("id,employee_id").execute().data or [])
