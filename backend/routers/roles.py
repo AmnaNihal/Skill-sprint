@@ -1,4 +1,5 @@
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -63,7 +64,17 @@ def meta_options(user: dict = Depends(get_current_user)):
     departments: set[str] = set()
     locations: set[str] = set()
 
-    for r in sb.table("role_requirements").select("role,competency,source_document_id").execute().data or []:
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        f_reqs = pool.submit(lambda: sb.table("role_requirements").select("role,competency,source_document_id").execute().data or [])
+        f_emps = pool.submit(lambda: sb.table("employees").select("role,department").execute().data or [])
+        f_docs = pool.submit(lambda: sb.table("documents").select("department").execute().data or [])
+        f_users = pool.submit(lambda: sb.table("users").select("display_name,email,role,employee_id,id").execute().data or [])
+        req_rows = f_reqs.result()
+        emp_rows = f_emps.result()
+        doc_rows = f_docs.result()
+        user_rows = f_users.result()
+
+    for r in req_rows:
         if not _req_visible(user, r):
             continue
         if r.get("role"):
@@ -71,13 +82,13 @@ def meta_options(user: dict = Depends(get_current_user)):
         if r.get("competency"):
             departments.add(r["competency"])
 
-    for e in filter_employees(user, sb.table("employees").select("role,department").execute().data or []):
+    for e in filter_employees(user, emp_rows):
         if e.get("role"):
             roles.add(e["role"])
         if e.get("department"):
             departments.add(e["department"])
 
-    for d in filter_documents(user, sb.table("documents").select("department").execute().data or []):
+    for d in filter_documents(user, doc_rows):
         if d.get("department"):
             departments.add(d["department"])
 
@@ -85,11 +96,8 @@ def meta_options(user: dict = Depends(get_current_user)):
     targets = ["30 Days", "60 Days", "90 Days"]
     default_locations = ["Remote", "On-site", "Hybrid", "Karachi", "Lahore", "Islamabad"]
 
-    manager_rows = (
-        sb.table("users").select("display_name,email,role,employee_id,id").execute().data or []
-    )
     managers = []
-    for u in manager_rows:
+    for u in user_rows:
         if u.get("role") not in ("manager", "admin", "training_manager"):
             continue
         if not (is_master(user) or str(u.get("id")) == str(user.get("id")) or owns_employee(user, u.get("employee_id"))):
@@ -194,7 +202,7 @@ def _training_info(plans: list[dict], employee_id: str) -> dict:
     infos = []
     for p in mine:
         payload = p.get("payload") or {}
-        summary = (payload.get("validation") or {}).get("summary") or {}
+        summary = (payload.get("validation") or {}).get("summary") or p.get("summary") or {}
         infos.append(
             {
                 "plan_id": str(p.get("id")),
@@ -203,11 +211,11 @@ def _training_info(plans: list[dict], employee_id: str) -> dict:
                 "verification_status": summary.get("verification_status") or "",
                 "coverage": summary.get("coverage_score") or 0,
                 "traceability": summary.get("traceability_score") or 0,
-                "progress": payload.get("progress") or 0,
+                "progress": payload.get("progress") if payload else (p.get("progress") or 0),
                 "created_at": p.get("created_at"),
             }
         )
-    avg = round(sum(i["progress"] for i in infos) / len(infos)) if infos else 0
+    avg = round(sum(i["progress"] or 0 for i in infos) / len(infos)) if infos else 0
     return {"plans": infos, "plans_count": len(infos), "avg_progress": avg}
 
 
@@ -229,16 +237,15 @@ def _employee_out(row: dict, user_email: str = "", training: dict | None = None,
 @router.get("/employees")
 def list_employees(user: dict = Depends(get_current_user)):
     sb = get_supabase()
-    rows = sb.table("employees").select("*").order("employee_id").execute().data or []
+    plan_select = "id,employee_id,role,status,created_at,payload->progress,payload->validation->summary"
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        f_emp = pool.submit(lambda: sb.table("employees").select("*").order("employee_id").execute().data or [])
+        f_plan = pool.submit(lambda: sb.table("plans").select(plan_select).execute().data or [])
+        f_user = pool.submit(lambda: sb.table("users").select("employee_id,email").execute().data or [])
+        rows = f_emp.result()
+        plans = f_plan.result()
+        users = f_user.result()
     rows = filter_employees(user, rows)
-    try:
-        plans = sb.table("plans").select("id,employee_id,role,status,payload,created_at").execute().data or []
-    except Exception:
-        plans = []
-    try:
-        users = sb.table("users").select("employee_id,email").execute().data or []
-    except Exception:
-        users = []
     email_by_emp = {u.get("employee_id"): u.get("email") for u in users if u.get("employee_id")}
     return [
         _employee_out(r, email_by_emp.get(r.get("employee_id"), ""), _training_info(plans, r.get("employee_id")))
@@ -255,14 +262,12 @@ def get_employee(employee_id: str, user: dict = Depends(get_current_user)):
     if not owns_employee(user, employee_id):
         raise HTTPException(403, "You can only access your own employees")
     row = rows[0]
-    try:
-        plans = sb.table("plans").select("id,employee_id,role,status,payload,created_at").execute().data or []
-    except Exception:
-        plans = []
-    try:
-        users = sb.table("users").select("employee_id,email").eq("employee_id", employee_id).execute().data or []
-    except Exception:
-        users = []
+    plan_select = "id,employee_id,role,status,created_at,payload->progress,payload->validation->summary"
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_plan = pool.submit(lambda: sb.table("plans").select(plan_select).execute().data or [])
+        f_user = pool.submit(lambda: sb.table("users").select("employee_id,email").eq("employee_id", employee_id).execute().data or [])
+        plans = f_plan.result()
+        users = f_user.result()
     email = users[0].get("email") if users else ""
     return _employee_out(row, email, _training_info(plans, employee_id), _required_competencies(sb, row.get("role") or ""))
 

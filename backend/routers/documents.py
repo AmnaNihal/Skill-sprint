@@ -39,6 +39,16 @@ def list_documents(user: dict = Depends(get_current_user)):
         .execute()
     )
     out = []
+    # Batch the chunk counts in ONE query instead of one query per document (avoids N+1).
+    chunk_counts: dict[str, int] = {}
+    try:
+        for c in get_supabase().table("document_chunks").select("document_id").execute().data or []:
+            did = c.get("document_id")
+            if did:
+                chunk_counts[did] = chunk_counts.get(did, 0) + 1
+    except Exception:
+        chunk_counts = {}
+
     for d in filter_documents(user, res.data or []):
         out.append(
             {
@@ -63,25 +73,11 @@ def list_documents(user: dict = Depends(get_current_user)):
                 "fileSize": d.get("filename") or "—",
                 "file_type": (d.get("filename") or "").rsplit(".", 1)[-1].lower() if d.get("filename") else "",
                 "tags": d.get("injection_flags") or [],
-                "chunksCount": 0,
-                "chunkCount": 0,
+                "chunksCount": chunk_counts.get(d.get("document_id"), 0),
+                "chunkCount": chunk_counts.get(d.get("document_id"), 0),
                 "injection_flags": d.get("injection_flags") or [],
             }
         )
-        # chunk counts
-        try:
-            cnt = (
-                get_supabase()
-                .table("document_chunks")
-                .select("id", count="exact")
-                .eq("document_id", d.get("document_id"))
-                .execute()
-            )
-            n = cnt.count if getattr(cnt, "count", None) is not None else 0
-            out[-1]["chunksCount"] = n
-            out[-1]["chunkCount"] = n
-        except Exception:
-            pass
     return out
 
 
