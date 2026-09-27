@@ -28,9 +28,14 @@ def me(user: dict = Depends(get_current_user)):
     return {**user, "is_master": is_master(user)}
 
 
+def _company_domain(email: str | None) -> str:
+    email = (email or "").lower()
+    return email.split("@", 1)[1] if "@" in email else ""
+
+
 @router.get("/users")
 def list_users(user: dict = Depends(require_admin)):
-    """List all user accounts (all roles) for administrators."""
+    """List user accounts belonging to the same company (email domain) as the caller."""
     rows = (
         get_supabase()
         .table("users")
@@ -40,6 +45,9 @@ def list_users(user: dict = Depends(require_admin)):
         .data
         or []
     )
+    domain = _company_domain(user.get("email"))
+    if domain:
+        rows = [r for r in rows if _company_domain(r.get("email")) == domain]
     return [_public_user(r) for r in rows]
 
 
