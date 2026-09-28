@@ -1,4 +1,5 @@
 import copy
+import difflib
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -39,6 +40,19 @@ PLAN_LIST_SELECT = (
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _match_score(genai_value, python_value, result: str) -> int:
+    """Deterministic similarity (0-100) between the generated value and the expected ground truth."""
+    g = str(genai_value if genai_value is not None else "").strip().lower()
+    p = str(python_value if python_value is not None else "").strip().lower()
+    if not g and not p:
+        return 100
+    if not g or not p:
+        return 0
+    if g == p:
+        return 100
+    return int(round(difflib.SequenceMatcher(None, g, p).ratio() * 100))
 
 
 def _pid(plan_id: str | int) -> int:
@@ -188,6 +202,7 @@ def _run_validation(sb, plan: dict, role_title: str):
             "result": f.result,
             "validation_status": f.validation_status,
             "detail": f.detail[:4000],
+            "match_score": _match_score(f.genai_value, f.python_value, f.result),
         }
         for i, f in enumerate(report.findings[:500])
     ]

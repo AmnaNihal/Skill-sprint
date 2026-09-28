@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from database.supabase_client import get_supabase
 from reporting.pdf import build_pdf
 from reporting.tabular import REPORT_TITLES, build_report
-from routers.plans import PLAN_LIST_SELECT, _fetch_plan_row, _flatten_plan_row, _normalize_plan, review_plan
+from routers.plans import PLAN_LIST_SELECT, _fetch_plan_row, _flatten_plan_row, _match_score, _normalize_plan, review_plan
 from schemas.models import ReviewDecision
 from security.auth import get_current_user, require_admin
 from security.tenancy import filter_documents, filter_employees, is_master, owns_employee
@@ -23,9 +23,19 @@ def get_validation(plan_id: str, user: dict = Depends(get_current_user)):
     flat = _flatten_plan_row(row)
     payload = _normalize_plan(row.get("payload") or {})
     validation = payload.get("validation") or {}
+    findings = validation.get("findings") or []
+    findings = [
+        {
+            **f,
+            "match_score": f.get("match_score")
+            if isinstance(f.get("match_score"), int)
+            else _match_score(f.get("genai_value"), f.get("python_value"), f.get("result") or ""),
+        }
+        for f in findings
+    ]
     return {
         "plan": flat,
-        "findings": validation.get("findings") or [],
+        "findings": findings,
         "summary": validation.get("summary") or {},
         "missing": validation.get("missing") or [],
         "contradictions": validation.get("contradictions") or [],

@@ -93,15 +93,8 @@ const learnerGroups: NavGroup[] = [
   {
     label: 'My Training',
     items: [
-      { tab: 'learnerDashboard', label: 'My Curriculum', icon: <GraduationCap className="w-4 h-4" /> },
+      { tab: 'learnerDashboard', label: 'My Learning', icon: <GraduationCap className="w-4 h-4" /> },
       { tab: 'planDetails', label: 'Plan Inspector', icon: <FileText className="w-4 h-4" /> },
-    ],
-  },
-  {
-    label: 'Company Knowledge',
-    items: [
-      { tab: 'documents', label: 'My Documents', icon: <FileText className="w-4 h-4" /> },
-      { tab: 'matrix', label: 'My Requirements', icon: <Layers className="w-4 h-4" /> },
     ],
   },
 ];

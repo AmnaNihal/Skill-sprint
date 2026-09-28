@@ -22,6 +22,7 @@ interface ValidationFinding {
   result?: string;
   validation_status?: string;
   detail?: string;
+  match_score?: number;
 }
 
 interface ValidationPayload {
@@ -41,7 +42,7 @@ function mapFinding(f: ValidationFinding, i: number): ValidationItem {
     title: f.field_name || 'Validation check',
     aiGeneratedContent: f.genai_value || f.detail || '—',
     pythonRuleEngineStatus: match ? 'Match' : (f.result === 'Missing' ? 'Missing Ref' : 'Discrepancy'),
-    confidenceScore: match ? 96 : 72,
+    confidenceScore: typeof f.match_score === 'number' ? f.match_score : (match ? 100 : 0),
     ruleCitation: f.python_value || f.validation_status || 'ground-truth rule',
     status: statusMap,
   };
@@ -200,9 +201,9 @@ export const ValidationView: React.FC = () => {
           <p className="text-[11px] text-amber-400 mt-0.5">Requires Review</p>
         </div>
         <div className="bg-slate-900/70 border border-purple-900/30 rounded-xl p-4">
-          <p className="text-xs text-slate-400">Avg Confidence</p>
+          <p className="text-xs text-slate-400">Avg Match Score</p>
           <p className="text-2xl font-bold text-purple-300 mt-1">{avgConf}%</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">High Precision Threshold</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Generated vs expected source</p>
         </div>
       </div>
 
@@ -347,7 +348,7 @@ export const ValidationView: React.FC = () => {
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-950/70 border border-purple-900/30 flex justify-between items-center">
-                  <span className="text-slate-400">Rule Engine Confidence:</span>
+                  <span className="text-slate-400">Ground-truth Match Score:</span>
                   <span className="text-emerald-400 font-bold font-mono text-sm">{selectedItem.confidenceScore}%</span>
                 </div>
               </div>
