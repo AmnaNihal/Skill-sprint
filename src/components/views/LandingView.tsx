@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   Sparkles, Shield, ArrowRight, Users, FileText, CheckCircle2, GraduationCap,
   Building2, ClipboardCheck, Brain, Search, RefreshCw, Lock, TrendingUp,
-  Clock, AlertTriangle, Quote, ChevronRight, Database, Workflow, GitCompare,
+  Clock, AlertTriangle, Quote, ChevronRight,
   Menu, X,
 } from 'lucide-react';
 
@@ -443,13 +443,8 @@ export const LandingView: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-12 pt-6 border-t border-purple-900/30 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="mt-12 pt-6 border-t border-purple-900/30">
             <p className="text-xs text-slate-500">© 2026 Skillsprint AI. Built for trustworthy onboarding.</p>
-            <div className="flex items-center gap-5 text-xs text-slate-500">
-              <span className="flex items-center gap-1.5"><Database className="w-3.5 h-3.5" /> Supabase</span>
-              <span className="flex items-center gap-1.5"><Workflow className="w-3.5 h-3.5" /> FastAPI</span>
-              <span className="flex items-center gap-1.5"><GitCompare className="w-3.5 h-3.5" /> Verified pipeline</span>
-            </div>
           </div>
         </div>
       </footer>
