@@ -402,23 +402,73 @@ export const LandingView: React.FC = () => {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-purple-900/30 bg-slate-950/70 py-10 px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
+      <footer className="relative z-10 border-t border-purple-900/30 bg-slate-950/80 px-6 lg:px-8 pt-16 pb-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10">
+            <div className="lg:col-span-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-600/20">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-base font-bold text-white">Skillsprint AI</p>
+                  <p className="text-[11px] text-purple-300">Trusted, verified onboarding</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-400 leading-relaxed max-w-sm">
+                Solves one problem: turning your company policies into role-specific onboarding that is
+                always traceable, reviewable and independently verified.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {['Verified', 'Traceable', 'Auditable', 'Secure'].map(t => (
+                  <span key={t} className="text-[11px] font-medium text-slate-300 bg-slate-900 border border-purple-900/30 px-2.5 py-1 rounded-full">
+                    {t}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-bold text-white">Skillsprint AI</p>
-              <p className="text-[11px] text-slate-500">Trusted, verified onboarding</p>
+
+            <div className="lg:col-span-3">
+              <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Explore</h4>
+              <ul className="space-y-3 text-sm text-slate-400">
+                {navLinks.map(l => (
+                  <li key={l.href}>
+                    <a href={l.href} className="hover:text-purple-300 transition">{l.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="lg:col-span-2">
+              <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Get Started</h4>
+              <ul className="space-y-3 text-sm text-slate-400">
+                <li><button onClick={() => goAuth(false)} className="hover:text-purple-300 transition">Sign In</button></li>
+                <li><button onClick={() => goAuth(true)} className="hover:text-purple-300 transition">Create Account</button></li>
+                <li><button onClick={goDashboard} className="hover:text-purple-300 transition">Live Product</button></li>
+              </ul>
+            </div>
+
+            <div className="lg:col-span-2">
+              <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Demo Access</h4>
+              <div className="space-y-2">
+                <code className="block font-mono text-[11px] text-purple-300 bg-slate-900 border border-purple-900/30 rounded-lg px-2.5 py-2 break-all">
+                  admin@skillsprint.local
+                </code>
+                <code className="block font-mono text-[11px] text-purple-300 bg-slate-900 border border-purple-900/30 rounded-lg px-2.5 py-2">
+                  admin123
+                </code>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-6 text-xs text-slate-400">
-            <span className="flex items-center gap-1.5"><Database className="w-3.5 h-3.5" /> Supabase</span>
-            <span className="flex items-center gap-1.5"><Workflow className="w-3.5 h-3.5" /> FastAPI</span>
-            <span className="flex items-center gap-1.5"><GitCompare className="w-3.5 h-3.5" /> Verified pipeline</span>
+
+          <div className="mt-12 pt-6 border-t border-purple-900/30 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-slate-500">© 2026 Skillsprint AI. Built for trustworthy onboarding.</p>
+            <div className="flex items-center gap-5 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5"><Database className="w-3.5 h-3.5" /> Supabase</span>
+              <span className="flex items-center gap-1.5"><Workflow className="w-3.5 h-3.5" /> FastAPI</span>
+              <span className="flex items-center gap-1.5"><GitCompare className="w-3.5 h-3.5" /> Verified pipeline</span>
+            </div>
           </div>
-          <p className="text-[11px] text-slate-500">© 2026 Skillsprint AI</p>
         </div>
       </footer>
     </div>
