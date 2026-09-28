@@ -1,4 +1,4 @@
-import { getToken } from './token';
+import { getToken, setToken, setStoredUser } from './token';
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE as string) ||
@@ -11,6 +11,21 @@ export class ApiError extends Error {
   constructor(status: number, message: string) {
     super(message);
     this.status = status;
+  }
+}
+
+function clearSessionAndRedirect() {
+  try {
+    setToken(null);
+    setStoredUser(null);
+  } catch {
+    /* ignore */
+  }
+  if (typeof window === 'undefined') return;
+  const { pathname } = window.location;
+  const onPublic = pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register');
+  if (!onPublic) {
+    window.location.replace('/login');
   }
 }
 
@@ -27,6 +42,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   if (res.status === 401) {
+    clearSessionAndRedirect();
     throw new ApiError(401, 'Session expired. Please log in again.');
   }
   if (!res.ok) {
