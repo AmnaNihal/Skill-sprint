@@ -42,36 +42,79 @@ const pathToTab: Record<string, NavigationTab> = {
   '/reports': 'reports',
 };
 
+interface NavItem {
+  tab: NavigationTab;
+  label: string;
+  icon: React.ReactNode;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const adminGroups: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [{ tab: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> }],
+  },
+  {
+    label: 'Workspace',
+    items: [
+      { tab: 'users', label: 'Admins & Users', icon: <ShieldCheck className="w-4 h-4" /> },
+      { tab: 'employees', label: 'Employees', icon: <Users className="w-4 h-4" /> },
+    ],
+  },
+  {
+    label: 'Knowledge',
+    items: [
+      { tab: 'documents', label: 'Document Library', icon: <FileText className="w-4 h-4" /> },
+      { tab: 'matrix', label: 'Role & Requirement Matrix', icon: <Layers className="w-4 h-4" /> },
+    ],
+  },
+  {
+    label: 'Training',
+    items: [
+      { tab: 'generatePlan', label: 'Generate Plan', icon: <Wand2 className="w-4 h-4" /> },
+      { tab: 'planDetails', label: 'Onboarding Plans', icon: <CheckCircle className="w-4 h-4" /> },
+    ],
+  },
+  {
+    label: 'Quality',
+    items: [
+      { tab: 'validation', label: 'Dual Validation', icon: <ShieldCheck className="w-4 h-4" /> },
+      { tab: 'reviews', label: 'Review & Sign-Off', icon: <UserCheck className="w-4 h-4" /> },
+      { tab: 'reports', label: 'Reports & Analytics', icon: <BarChart3 className="w-4 h-4" /> },
+    ],
+  },
+];
+
+const learnerGroups: NavGroup[] = [
+  {
+    label: 'My Training',
+    items: [
+      { tab: 'learnerDashboard', label: 'My Curriculum', icon: <GraduationCap className="w-4 h-4" /> },
+      { tab: 'planDetails', label: 'Plan Inspector', icon: <FileText className="w-4 h-4" /> },
+    ],
+  },
+  {
+    label: 'Company Knowledge',
+    items: [
+      { tab: 'documents', label: 'My Documents', icon: <FileText className="w-4 h-4" /> },
+      { tab: 'matrix', label: 'My Requirements', icon: <Layers className="w-4 h-4" /> },
+    ],
+  },
+];
+
 export const Sidebar: React.FC = () => {
-  const { setCurrentView, currentRole, loginAs } = useApp();
+  const { setCurrentView, currentRole } = useApp();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const currentTab = pathToTab[location.pathname] || 'dashboard';
   const role = (user?.role as 'admin' | 'learner') || currentRole;
-
-  const adminNavItems: { tab: NavigationTab; label: string; icon: React.ReactNode; badge?: string }[] = [
-    { tab: 'dashboard', label: 'Admin Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { tab: 'users', label: 'Admins & Users', icon: <ShieldCheck className="w-4 h-4" /> },
-    { tab: 'employees', label: 'Employees', icon: <Users className="w-4 h-4" /> },
-    { tab: 'documents', label: 'Document Library', icon: <FileText className="w-4 h-4" /> },
-    { tab: 'matrix', label: 'Role & Req Matrix', icon: <Layers className="w-4 h-4" /> },
-    { tab: 'generatePlan', label: 'Generate Plan', icon: <Wand2 className="w-4 h-4" /> },
-    { tab: 'planDetails', label: 'Onboarding Plans', icon: <CheckCircle className="w-4 h-4" /> },
-    { tab: 'validation', label: 'Dual Validation', icon: <ShieldCheck className="w-4 h-4" />, badge: '98%' },
-    { tab: 'reviews', label: 'Review & Sign-Off', icon: <UserCheck className="w-4 h-4" />, badge: '1' },
-    { tab: 'reports', label: 'Reports & Analytics', icon: <BarChart3 className="w-4 h-4" /> },
-  ];
-
-  const learnerNavItems: { tab: NavigationTab; label: string; icon: React.ReactNode; badge?: string }[] = [
-    { tab: 'learnerDashboard', label: 'My Curriculum', icon: <GraduationCap className="w-4 h-4" />, badge: '65%' },
-    { tab: 'planDetails', label: 'Plan Inspector', icon: <FileText className="w-4 h-4" /> },
-    { tab: 'documents', label: 'My Documents', icon: <FileText className="w-4 h-4" /> },
-    { tab: 'matrix', label: 'My Requirements', icon: <Layers className="w-4 h-4" /> },
-  ];
-
-  const navItems = role === 'admin' ? adminNavItems : learnerNavItems;
+  const groups = role === 'admin' ? adminGroups : learnerGroups;
 
   const go = (tab: NavigationTab) => {
     setCurrentView(tab);
@@ -84,12 +127,6 @@ export const Sidebar: React.FC = () => {
     navigate('/', { replace: true });
   };
 
-  const handleSwitchRole = () => {
-    const next = role === 'admin' ? 'learner' : 'admin';
-    loginAs(next);
-    go(next === 'admin' ? 'dashboard' : 'learnerDashboard');
-  };
-
   const initials = (user?.full_name || user?.email || 'U')
     .split(/[\s@.]+/)
     .filter(Boolean)
@@ -98,11 +135,11 @@ export const Sidebar: React.FC = () => {
     .join('');
 
   return (
-    <aside className="w-64 shrink-0 bg-slate-950/90 border-r border-purple-900/30 flex flex-col justify-between p-4 sticky top-0 h-screen overflow-y-auto backdrop-blur-md">
+    <aside className="w-64 shrink-0 bg-slate-950/90 border-r border-purple-900/30 flex flex-col justify-between sticky top-0 h-screen overflow-y-auto backdrop-blur-md">
       <div>
         <div
           onClick={() => go('landing')}
-          className="flex items-center gap-3 px-2 py-3 mb-6 cursor-pointer group"
+          className="flex items-center gap-3 px-2 py-3 mb-5 cursor-pointer group"
         >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-600/30 group-hover:scale-105 transition">
             <Sparkles className="w-5 h-5 text-white" />
@@ -111,80 +148,59 @@ export const Sidebar: React.FC = () => {
             <h1 className="font-extrabold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-purple-400">
               Skillsprint AI
             </h1>
-            <p className="text-[10px] text-purple-400 font-mono">Dual-Engine Training</p>
+            <p className="text-[10px] text-purple-400 font-mono">Verified Onboarding</p>
           </div>
         </div>
 
-        <div className="mb-6 p-2 rounded-xl bg-purple-950/40 border border-purple-900/40 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className={'w-2 h-2 rounded-full ' + (role === 'admin' ? 'bg-purple-400' : 'bg-emerald-400')} />
-            <span className="text-xs font-semibold text-slate-200 capitalize">{role} Mode</span>
+        <div className="mb-4 p-2.5 rounded-xl bg-slate-900/70 border border-purple-900/30 flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-white text-xs font-bold shrink-0">
+            {initials || 'U'}
           </div>
-          <button
-            onClick={handleSwitchRole}
-            className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-0.5 bg-purple-800/40 hover:bg-purple-700/60 rounded border border-purple-700/50 transition"
-          >
-            Switch
-          </button>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-slate-200 truncate">{user?.full_name || user?.email || 'Guest'}</p>
+            <p className="text-[10px] text-slate-400 capitalize">{role} account</p>
+          </div>
         </div>
 
-        <nav className="space-y-1">
-          {navItems.map(item => {
-            const isActive = currentTab === item.tab;
-            return (
-              <button
-                key={item.tab}
-                onClick={() => go(item.tab)}
-                className={
-                  'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition group ' +
-                  (isActive
-                    ? 'bg-purple-600/25 text-purple-200 border border-purple-500/40 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900')
-                }
-              >
-                <div className="flex items-center gap-3">
-                  <span className={isActive ? 'text-purple-400' : 'text-slate-400 group-hover:text-purple-300'}>
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span
-                    className={
-                      'text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ' +
-                      (isActive ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400')
-                    }
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        <nav className="space-y-5">
+          {groups.map(group => (
+            <div key={group.label}>
+              <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">{group.label}</p>
+              <div className="space-y-1">
+                {group.items.map(item => {
+                  const isActive = currentTab === item.tab;
+                  return (
+                    <button
+                      key={item.tab}
+                      onClick={() => go(item.tab)}
+                      className={
+                        'relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition group ' +
+                        (isActive
+                          ? 'bg-purple-600/20 text-purple-100 border border-purple-500/40 shadow-sm'
+                          : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900 border border-transparent')
+                      }
+                    >
+                      {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-purple-400" />}
+                      <span className={isActive ? 'text-purple-300' : 'text-slate-400 group-hover:text-purple-300 transition'}>
+                        {item.icon}
+                      </span>
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </div>
 
-      <div className="pt-4 border-t border-purple-900/30">
-        <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-purple-900/20">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-white text-xs font-bold">
-              {initials || 'U'}
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-200">
-                {user?.full_name || user?.email || 'Guest'}
-              </p>
-              <p className="text-[10px] text-slate-400 capitalize">{role}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            title="Log Out"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
+      <div className="pt-4 mt-4 border-t border-purple-900/30">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition"
+        >
+          <LogOut className="w-4 h-4" /> Log out
+        </button>
       </div>
     </aside>
   );

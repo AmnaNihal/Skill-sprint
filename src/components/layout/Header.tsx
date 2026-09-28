@@ -2,7 +2,21 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { Bell, ExternalLink } from 'lucide-react';
+import { Bell, ExternalLink, Repeat } from 'lucide-react';
+
+const TITLES: Record<string, string> = {
+  '/dashboard': 'Admin Dashboard',
+  '/users': 'Admins & Users',
+  '/employees': 'Employees',
+  '/documents': 'Document Library',
+  '/matrix': 'Role & Requirement Matrix',
+  '/generate': 'Generate Onboarding Plan',
+  '/plans': 'Onboarding Plans',
+  '/validation': 'Dual Validation',
+  '/reviews': 'Review & Sign-Off',
+  '/learner': 'My Curriculum',
+  '/reports': 'Reports & Analytics',
+};
 
 export const Header: React.FC = () => {
   const { currentRole, loginAs, setCurrentView, addToast } = useApp();
@@ -11,7 +25,7 @@ export const Header: React.FC = () => {
   const location = useLocation();
 
   const role = (user?.role as 'admin' | 'learner') || currentRole;
-  const viewLabel = location.pathname.replace('/', '') || 'home';
+  const title = TITLES[location.pathname] || location.pathname.replace(/^\//, '').replace(/^\w/, c => c.toUpperCase()) || 'Dashboard';
 
   const switchRole = () => {
     const next = role === 'admin' ? 'learner' : 'admin';
@@ -35,23 +49,21 @@ export const Header: React.FC = () => {
 
   return (
     <header className="h-16 bg-slate-950/80 border-b border-purple-900/30 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-mono uppercase tracking-wider text-purple-400 font-bold bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20">
-          {role.toUpperCase()} VIEW
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-purple-300 font-bold bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20">
+          {role}
         </span>
-        <span className="text-slate-500">•</span>
-        <span className="text-sm font-semibold text-slate-300 capitalize">{viewLabel}</span>
+        <h2 className="text-sm font-semibold text-slate-200 truncate">{title}</h2>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-3">
         <button
           onClick={switchRole}
-          className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-purple-900/40 text-xs font-medium text-purple-300 hover:text-white transition"
+          title={`Switch to ${role === 'admin' ? 'learner' : 'admin'} view`}
+          className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-purple-900/40 text-xs font-medium text-slate-300 hover:text-white transition"
         >
-          <span>
-            Role: <strong className="text-white capitalize">{role}</strong>
-          </span>
-          <span className="text-[10px] text-slate-500">(Click to toggle)</span>
+          <Repeat className="w-3.5 h-3.5 text-purple-400" />
+          <span>Switch view</span>
         </button>
 
         <button
@@ -59,7 +71,7 @@ export const Header: React.FC = () => {
             setCurrentView('landing');
             navigate('/');
           }}
-          className="text-xs font-semibold text-slate-400 hover:text-purple-300 transition flex items-center gap-1"
+          className="hidden md:inline-flex text-xs font-semibold text-slate-400 hover:text-purple-300 transition items-center gap-1"
         >
           Landing <ExternalLink className="w-3 h-3" />
         </button>
@@ -69,14 +81,14 @@ export const Header: React.FC = () => {
           className="relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition"
         >
           <Bell className="w-4 h-4" />
-          <span className="w-2 h-2 rounded-full bg-purple-500 absolute top-1.5 right-1.5" />
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-500 absolute top-2 right-2" />
         </button>
 
-        <div className="flex items-center gap-2 pl-2 border-l border-purple-900/30">
-          <div className="w-7 h-7 rounded-lg bg-purple-600 text-white font-bold text-xs flex items-center justify-center shadow-md">
+        <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-purple-900/30">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-md">
             {initials || 'U'}
           </div>
-          <span className="text-xs font-semibold text-slate-200 hidden md:inline">
+          <span className="text-xs font-semibold text-slate-200 hidden lg:inline max-w-[10rem] truncate">
             {user?.full_name || user?.email || 'Guest'}
           </span>
           <button

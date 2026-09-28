@@ -1,23 +1,36 @@
 @import "tailwindcss";
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #0b0914;
+    color: #e2e8f0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', monospace;
   }
+
+  :focus-visible {
+    outline: 2px solid rgba(168, 85, 247, 0.65);
+    outline-offset: 2px;
+  }
 }
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0b0914;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -27,6 +40,11 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #7e22ce;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3b0764 transparent;
 }
 
 @keyframes fadeIn {
@@ -39,10 +57,26 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .animate-fadeIn {
   animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-slideIn {
   animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeUp {
+  animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Subtle ambient background for the authenticated app shell */
+.app-bg {
+  background-image:
+    radial-gradient(60rem 60rem at 110% -10%, rgba(147, 51, 234, 0.08), transparent 60%),
+    radial-gradient(50rem 50rem at -10% 0%, rgba(79, 70, 229, 0.08), transparent 55%);
 }

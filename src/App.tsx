@@ -56,9 +56,9 @@ const RequireAuth: React.FC<{ children: React.ReactElement; adminOnly?: boolean 
 const AppShell: React.FC<{ children: React.ReactElement }> = ({ children }) => (
   <div className="flex flex-1">
     <Sidebar />
-    <div className="flex-1 flex flex-col min-w-0">
+    <div className="flex-1 flex flex-col min-w-0 app-bg">
       <Header />
-      <main className="flex-1 px-6 sm:px-10 lg:px-12 py-8 sm:py-10 max-w-[1400px] w-full mx-auto">{children}</main>
+      <main className="flex-1 px-6 sm:px-8 lg:px-10 py-8 sm:py-10 max-w-[1400px] w-full mx-auto animate-fadeUp">{children}</main>
     </div>
   </div>
 );
