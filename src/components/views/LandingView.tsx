@@ -84,9 +84,11 @@ export const LandingView: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0b0914] text-slate-100 flex flex-col selection:bg-purple-500 selection:text-white relative overflow-hidden">
-      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-1/3 right-10 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen bg-[#0b0914] text-slate-100 flex flex-col selection:bg-purple-500 selection:text-white relative">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[140px]" />
+        <div className="absolute top-1/3 right-10 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px]" />
+      </div>
 
       {/* Header */}
       <header className="relative z-20 border-b border-purple-900/30 backdrop-blur-md bg-slate-950/70 sticky top-0">
