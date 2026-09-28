@@ -101,11 +101,19 @@ def can_view_employee_data(user: dict, employee_id: str | None) -> bool:
     """True if the user may view data for an employee.
 
     Covers the user's own linked employee (e.g. a learner viewing the plan an admin generated
-    for them) in addition to the normal owner-scoped access.
+    for them) and, for managers/reviewers, every employee in their company.
     """
     if is_master(user):
         return True
     if employee_id and str(user.get("employee_id") or "") == str(employee_id):
         return True
-    return owns_employee(user, employee_id)
+    if owns_employee(user, employee_id):
+        return True
+    # Managers/reviewers/training managers can see all employees in their company.
+    if str(user.get("role") or "") != "learner" and employee_id:
+        emp = str(user.get("employee_id") or "")
+        company = emp.split("-", 1)[0] if "-" in emp else (owner_key(user) or "")
+        if company and str(employee_id).startswith(f"{company}-"):
+            return True
+    return False
 
