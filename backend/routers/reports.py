@@ -8,7 +8,19 @@ from fastapi.responses import StreamingResponse
 from database.supabase_client import get_supabase
 from reporting.pdf import build_pdf
 from reporting.tabular import REPORT_TITLES, build_report
-from routers.plans import PLAN_LIST_SELECT, _fetch_plan_row, _flatten_plan_row, _match_score, _normalize_plan, review_plan
+from python_validation.validation_context import build_context
+from routers.plans import (
+    PLAN_LIST_SELECT,
+    _alignment_scores,
+    _assert_plan_access,
+    _fetch_plan_row,
+    _flatten_plan_row,
+    _match_score,
+    _normalize_plan,
+    _normalize_reqs,
+    _score_finding,
+    review_plan,
+)
 from schemas.models import ReviewDecision
 from security.auth import get_current_user, require_admin
 from security.tenancy import filter_documents, filter_employees, is_master, owner_key, owns_employee
@@ -20,17 +32,36 @@ router = APIRouter(tags=["validation", "reviews", "reports", "dashboard"])
 def get_validation(plan_id: str, user: dict = Depends(get_current_user)):
     sb = get_supabase()
     row = _fetch_plan_row(sb, plan_id)
+    _assert_plan_access(user, row)
     flat = _flatten_plan_row(row)
     payload = _normalize_plan(row.get("payload") or {})
     validation = payload.get("validation") or {}
     findings = validation.get("findings") or []
-    findings = [
-        {
-            **f,
-            "match_score": _match_score(f.get("genai_value"), f.get("python_value"), f.get("result") or ""),
-        }
-        for f in findings
-    ]
+
+    # Recompute genuine per-finding scores (content alignment for coverage, similarity for mismatches).
+    try:
+        role = row.get("role") or payload.get("role") or ""
+        reqs = _normalize_reqs(list(build_context(role, sb=sb).all_requirements))
+        alignment = _alignment_scores(payload.get("modules") or [], reqs)
+        findings = [
+            {
+                **f,
+                "match_score": _score_finding(
+                    f.get("field_name", ""), f.get("requirement_id"),
+                    f.get("genai_value"), f.get("python_value"), f.get("result") or "", alignment,
+                ),
+            }
+            for f in findings
+        ]
+    except Exception:
+        findings = [
+            {
+                **f,
+                "match_score": _match_score(f.get("genai_value"), f.get("python_value"), f.get("result") or ""),
+            }
+            for f in findings
+        ]
+
     return {
         "plan": flat,
         "findings": findings,

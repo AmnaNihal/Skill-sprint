@@ -354,7 +354,7 @@ export const ValidationView: React.FC = () => {
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-950/70 border border-purple-900/30 flex justify-between items-center">
-                  <span className="text-slate-400">Validation score (100 = pass):</span>
+                  <span className="text-slate-400">Validation match score:</span>
                   <span className="text-emerald-400 font-bold font-mono text-sm">{selectedItem.confidenceScore}%</span>
                 </div>
               </div>

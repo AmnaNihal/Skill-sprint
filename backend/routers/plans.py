@@ -64,8 +64,48 @@ def _match_score(genai_value, python_value, result: str) -> int:
     return int(round(difflib.SequenceMatcher(None, g, p).ratio() * 100))
 
 
+def _alignment_scores(modules: list[dict], reqs: list[dict]) -> dict[str, int]:
+    """Per-requirement content alignment score (0-100) between generated module content and
+    the requirement text. Gives coverage checks a genuine, requirement-specific value."""
+    req_text: dict[str, str] = {}
+    for r in reqs:
+        rid = str(r.get("id") or r.get("requirement_id") or "")
+        if rid:
+            req_text[rid] = " ".join(
+                str(x) for x in (r.get("title"), r.get("requirement"), r.get("description")) if x
+            ).strip().lower()
+
+    module_text: dict[str, list[str]] = {}
+    for m in modules or []:
+        if not isinstance(m, dict):
+            continue
+        parts = [m.get("module_title") or m.get("title"), m.get("description") or m.get("purpose")]
+        parts.extend(m.get("objectives") or [])
+        parts.extend(t.get("title") for t in (m.get("tasks") or []) if isinstance(t, dict))
+        text = " ".join(str(p) for p in parts if p).strip().lower()
+        rids = list(m.get("requirement_ids") or [])
+        if m.get("requirement_id"):
+            rids.append(m.get("requirement_id"))
+        for rid in {str(x) for x in rids if x}:
+            module_text.setdefault(rid, []).append(text)
+
+    scores: dict[str, int] = {}
+    for rid, rt in req_text.items():
+        mts = module_text.get(rid)
+        if rt and mts:
+            scores[rid] = int(round(difflib.SequenceMatcher(None, rt, " ".join(mts)).ratio() * 100))
+    return scores
+
+
+def _score_finding(field_name: str, requirement_id, genai, python, result: str, alignment: dict[str, int]) -> int:
+    if (result or "") == "Match" and field_name in ("mandatory_coverage", "optional_coverage"):
+        score = alignment.get(str(requirement_id))
+        if score is not None:
+            return score
+    return _match_score(genai, python, result)
+
+
 def _quiz_is_correct(question: dict, selected: str | None) -> bool:
-    """Grade a single quiz answer against its correct_answer (text or index based)."""
     if selected is None:
         return False
     answers = question.get("correct_answer") or []
@@ -219,6 +259,8 @@ def _run_validation(sb, plan: dict, role_title: str):
     for h in hallucinations:
         report.hallucinations.append(f"{h['item']}: {h['reason']}")
 
+    alignment = _alignment_scores(plan_n.get("modules") or [], reqs)
+
     findings = [
         {
             "id": f"F{i+1:04d}",
@@ -229,7 +271,9 @@ def _run_validation(sb, plan: dict, role_title: str):
             "result": f.result,
             "validation_status": f.validation_status,
             "detail": f.detail[:4000],
-            "match_score": _match_score(f.genai_value, f.python_value, f.result),
+            "match_score": _score_finding(
+                f.field_name, f.requirement_id, f.genai_value, f.python_value, f.result, alignment
+            ),
         }
         for i, f in enumerate(report.findings[:500])
     ]
