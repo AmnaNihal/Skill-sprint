@@ -36,9 +36,9 @@ function mapFinding(f: ValidationFinding, i: number, reqScore?: number): Validat
     f.validation_status === 'Verified' ? 'Verified'
       : f.validation_status === 'Verified with Warning' ? 'Under Review'
         : 'Flagged';
-  const score = typeof reqScore === 'number'
-    ? reqScore
-    : (typeof f.match_score === 'number' ? f.match_score : (match ? 100 : 0));
+  const score = typeof f.match_score === 'number'
+    ? f.match_score
+    : (typeof reqScore === 'number' ? reqScore : (match ? 100 : 0));
   return {
     id: f.id || String(i),
     requirementId: f.requirement_id || 'REQ-???',
@@ -116,21 +116,7 @@ export const ValidationView: React.FC = () => {
   };
 
   const findings = payload?.findings || [];
-
-  // Real per-requirement score: how many of that requirement's field checks actually match.
-  const reqTotals: Record<string, { total: number; match: number }> = {};
-  for (const f of findings) {
-    const rid = f.requirement_id || '?';
-    if (!reqTotals[rid]) reqTotals[rid] = { total: 0, match: 0 };
-    reqTotals[rid].total += 1;
-    if ((f.result || '') === 'Match') reqTotals[rid].match += 1;
-  }
-  const requirementScore = (rid?: string): number | undefined => {
-    const b = reqTotals[rid || '?'];
-    return b && b.total ? Math.round((b.match / b.total) * 100) : undefined;
-  };
-
-  const items = findings.map((f, i) => mapFinding(f, i, requirementScore(f.requirement_id)));
+  const items = findings.map((f, i) => mapFinding(f, i));
   const filteredItems = items.filter(item => {
     const matchesStatus =
       filterStatus === 'All' ||
@@ -368,7 +354,7 @@ export const ValidationView: React.FC = () => {
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-950/70 border border-purple-900/30 flex justify-between items-center">
-                  <span className="text-slate-400">Requirement Score (checks matched):</span>
+                  <span className="text-slate-400">Validation score (100 = pass):</span>
                   <span className="text-emerald-400 font-bold font-mono text-sm">{selectedItem.confidenceScore}%</span>
                 </div>
               </div>
