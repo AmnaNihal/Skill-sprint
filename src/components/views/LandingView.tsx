@@ -6,12 +6,21 @@ import {
   Sparkles, Shield, ArrowRight, Users, FileText, CheckCircle2, GraduationCap,
   Building2, ClipboardCheck, Brain, Search, RefreshCw, Lock, TrendingUp,
   Clock, AlertTriangle, Quote, ChevronRight, Database, Workflow, GitCompare,
+  Menu, X,
 } from 'lucide-react';
 
 export const LandingView: React.FC = () => {
   const { setCurrentView } = useApp();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = React.useState(false);
+
+  const navLinks = [
+    { href: '#problem', label: 'The Problem' },
+    { href: '#how', label: 'How it Works' },
+    { href: '#audience', label: "Who it's For" },
+    { href: '#trust', label: "Why it's Trusted" },
+  ];
 
   const goAuth = (register = false) => {
     setCurrentView('auth');
@@ -94,31 +103,60 @@ export const LandingView: React.FC = () => {
           </div>
 
           <nav className="hidden lg:flex items-center gap-9 text-sm font-medium text-slate-300">
-            <a href="#problem" className="hover:text-purple-300 transition">The Problem</a>
-            <a href="#how" className="hover:text-purple-300 transition">How it Works</a>
-            <a href="#audience" className="hover:text-purple-300 transition">Who it's For</a>
-            <a href="#trust" className="hover:text-purple-300 transition">Why it's Trusted</a>
+            {navLinks.map(l => (
+              <a key={l.href} href={l.href} className="hover:text-purple-300 transition">{l.label}</a>
+            ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
-              <button onClick={goDashboard} className="px-4 py-2 text-sm font-semibold text-slate-200 hover:text-white transition">
+              <button onClick={goDashboard} className="hidden sm:inline-block px-4 py-2 text-sm font-semibold text-slate-200 hover:text-white transition">
                 My Dashboard
               </button>
             ) : (
-              <button onClick={() => goAuth(false)} className="px-4 py-2 text-sm font-semibold text-slate-200 hover:text-white transition">
+              <button onClick={() => goAuth(false)} className="hidden sm:inline-block px-4 py-2 text-sm font-semibold text-slate-200 hover:text-white transition">
                 Sign In
               </button>
             )}
             <button
               onClick={user ? goDashboard : () => goAuth(true)}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-purple-600/30 transition ring-1 ring-purple-400/30 flex items-center gap-2"
+              className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-purple-600/30 transition ring-1 ring-purple-400/30 flex items-center gap-2"
             >
               <span>{user ? 'Launch App' : 'Get Started'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+            <button
+              onClick={() => setMenuOpen(v => !v)}
+              aria-label="Toggle navigation"
+              className="lg:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-900 border border-purple-900/30 transition"
+            >
+              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {menuOpen && (
+          <div className="lg:hidden border-t border-purple-900/30 bg-slate-950/95 backdrop-blur-md animate-fadeUp">
+            <nav className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-1">
+              {navLinks.map(l => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="px-3 py-3 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-900 transition"
+                >
+                  {l.label}
+                </a>
+              ))}
+              <button
+                onClick={() => { setMenuOpen(false); user ? goDashboard() : goAuth(false); }}
+                className="mt-1 px-3 py-3 rounded-xl text-sm font-semibold text-left text-slate-300 hover:text-white hover:bg-slate-900 transition"
+              >
+                {user ? 'My Dashboard' : 'Sign In'}
+              </button>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* Hero */}
@@ -214,7 +252,7 @@ export const LandingView: React.FC = () => {
       </section>
 
       {/* Problem */}
-      <section id="problem" className="relative z-10 border-t border-purple-900/30 bg-slate-950/70 py-24 px-6 lg:px-8">
+      <section id="problem" className="scroll-mt-20 relative z-10 border-t border-purple-900/30 bg-slate-950/70 py-24 px-6 lg:px-8">
         <div className="max-w-7xl mx-auto space-y-14">
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <h2 className="text-xs font-bold text-rose-300 uppercase tracking-widest">The Problem We Solve</h2>
@@ -238,7 +276,7 @@ export const LandingView: React.FC = () => {
       </section>
 
       {/* How it works */}
-      <section id="how" className="relative z-10 py-24 px-6 lg:px-8">
+      <section id="how" className="scroll-mt-20 relative z-10 py-24 px-6 lg:px-8">
         <div className="max-w-7xl mx-auto space-y-14">
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <h2 className="text-xs font-bold text-purple-400 uppercase tracking-widest">How It Works</h2>
@@ -274,7 +312,7 @@ export const LandingView: React.FC = () => {
       </section>
 
       {/* Audience */}
-      <section id="audience" className="relative z-10 border-t border-purple-900/30 bg-slate-950/70 py-24 px-6 lg:px-8">
+      <section id="audience" className="scroll-mt-20 relative z-10 border-t border-purple-900/30 bg-slate-950/70 py-24 px-6 lg:px-8">
         <div className="max-w-7xl mx-auto space-y-14">
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <h2 className="text-xs font-bold text-purple-400 uppercase tracking-widest">Who It's For</h2>
@@ -300,7 +338,7 @@ export const LandingView: React.FC = () => {
       </section>
 
       {/* Trust */}
-      <section id="trust" className="relative z-10 py-24 px-6 lg:px-8">
+      <section id="trust" className="scroll-mt-20 relative z-10 py-24 px-6 lg:px-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
