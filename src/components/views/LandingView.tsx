@@ -199,12 +199,6 @@ export const LandingView: React.FC = () => {
               <span>View the live product</span>
             </button>
           </div>
-
-          <div className="pt-6 flex items-center justify-center lg:justify-start gap-3 text-xs text-slate-500">
-            <span className="font-semibold text-slate-400">Demo admin:</span>
-            <code className="font-mono text-purple-300 bg-purple-500/10 px-2 py-1 rounded border border-purple-500/20">admin@skillsprint.local</code>
-            <code className="font-mono text-purple-300 bg-purple-500/10 px-2 py-1 rounded border border-purple-500/20">admin123</code>
-          </div>
         </div>
 
         {/* Product preview */}
@@ -405,7 +399,7 @@ export const LandingView: React.FC = () => {
       <footer className="relative z-10 border-t border-purple-900/30 bg-slate-950/80 px-6 lg:px-8 pt-16 pb-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10">
-            <div className="lg:col-span-5 space-y-4">
+            <div className="lg:col-span-6 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-600/20">
                   <Sparkles className="w-5 h-5 text-white" />
@@ -439,25 +433,13 @@ export const LandingView: React.FC = () => {
               </ul>
             </div>
 
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-3">
               <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Get Started</h4>
               <ul className="space-y-3 text-sm text-slate-400">
                 <li><button onClick={() => goAuth(false)} className="hover:text-purple-300 transition">Sign In</button></li>
                 <li><button onClick={() => goAuth(true)} className="hover:text-purple-300 transition">Create Account</button></li>
                 <li><button onClick={goDashboard} className="hover:text-purple-300 transition">Live Product</button></li>
               </ul>
-            </div>
-
-            <div className="lg:col-span-2">
-              <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Demo Access</h4>
-              <div className="space-y-2">
-                <code className="block font-mono text-[11px] text-purple-300 bg-slate-900 border border-purple-900/30 rounded-lg px-2.5 py-2 break-all">
-                  admin@skillsprint.local
-                </code>
-                <code className="block font-mono text-[11px] text-purple-300 bg-slate-900 border border-purple-900/30 rounded-lg px-2.5 py-2">
-                  admin123
-                </code>
-              </div>
             </div>
           </div>
 
