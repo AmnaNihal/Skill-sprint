@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import {
   Users, ClipboardList, TrendingUp, AlertTriangle, RefreshCw, Award, GraduationCap, ExternalLink,
@@ -43,6 +44,8 @@ interface ManagerDash {
 
 export const ManagerDashboardView: React.FC = () => {
   const { addToast } = useApp();
+  const { user } = useAuth();
+  const isTrainingManager = user?.role === 'training_manager';
   const navigate = useNavigate();
   const [data, setData] = useState<ManagerDash | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,9 +113,13 @@ export const ManagerDashboardView: React.FC = () => {
             <Users className="w-3.5 h-3.5 text-purple-400" />
             <span>Manager Workspace · Company {data.company || '—'}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Team Learning Overview</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            {isTrainingManager ? 'My Team Learning' : 'Team Learning Overview'}
+          </h1>
           <p className="text-slate-300 text-sm mt-1 max-w-2xl">
-            All learning-manager accounts and every employee's onboarding progress and plans in your company.
+            {isTrainingManager
+              ? 'The employees assigned to you, with their onboarding progress and plans.'
+              : "All learning-manager accounts and every employee's onboarding progress and plans in your company."}
           </p>
         </div>
       </div>

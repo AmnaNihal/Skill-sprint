@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from passlib.hash import bcrypt
 
 from database.supabase_client import get_supabase
-from schemas.models import LoginRequest, RegisterRequest, UserCreate
+from schemas.models import LoginRequest, RegisterRequest, TeamAssignRequest, UserCreate
 from security.auth import create_access_token, get_current_user, require_admin
 from security.tenancy import is_master, owner_key, owns_employee, owns_user
 
@@ -84,6 +84,38 @@ def create_user(payload: UserCreate, user: dict = Depends(require_admin)):
     except Exception as e:
         raise HTTPException(400, f"User creation failed: {e}")
     return _public_user(created)
+
+
+@router.post("/users/{user_id}/team")
+def assign_team(user_id: str, payload: TeamAssignRequest, user: dict = Depends(require_admin)):
+    """Assign employees under a training manager (learning manager). Admin only."""
+    sb = get_supabase()
+    target_rows = sb.table("users").select("*").eq("id", user_id).limit(1).execute().data or []
+    if not target_rows:
+        raise HTTPException(404, "User not found")
+    target = target_rows[0]
+    if target.get("role") != "training_manager":
+        raise HTTPException(400, "Team assignment is only available for training managers")
+    manager_key = str(target.get("email") or "")
+    if not manager_key:
+        raise HTTPException(400, "Training manager has no email")
+
+    employees = sb.table("employees").select("employee_id,manager").execute().data or []
+    if not is_master(user):
+        employees = [e for e in employees if owns_employee(user, e.get("employee_id"))]
+
+    wanted = {str(x) for x in payload.employee_ids}
+    assigned = 0
+    for e in employees:
+        eid = str(e.get("employee_id"))
+        current = str(e.get("manager") or "")
+        if eid in wanted:
+            if current != manager_key:
+                sb.table("employees").update({"manager": manager_key}).eq("employee_id", eid).execute()
+            assigned += 1
+        elif current.lower() == manager_key.lower():
+            sb.table("employees").update({"manager": ""}).eq("employee_id", eid).execute()
+    return {"user_id": str(target.get("id")), "manager": manager_key, "assigned": assigned}
 
 
 @router.post("/register")

@@ -596,9 +596,22 @@ def manager_dashboard(user: dict = Depends(get_current_user)):
     master = is_master(user)
 
     employees = sb.table("employees").select(
-        "employee_id,name,role,department,training_status"
+        "employee_id,name,role,department,training_status,manager"
     ).order("employee_id").execute().data or []
-    if not master:
+
+    is_training_manager = str(user.get("role") or "") == "training_manager"
+    if is_training_manager:
+        # A training manager only sees the employees assigned under them (their team).
+        identifiers = {
+            str(user.get("email") or "").lower(),
+            str(user.get("full_name") or "").lower(),
+        }
+        identifiers.discard("")
+        employees = [
+            e for e in employees
+            if str(e.get("manager") or "").strip().lower() in identifiers
+        ]
+    elif not master:
         employees = [
             e for e in employees
             if company and str(e.get("employee_id") or "").startswith(f"{company}-")
@@ -607,7 +620,7 @@ def manager_dashboard(user: dict = Depends(get_current_user)):
     plan_rows = sb.table("plans").select(PLAN_LIST_SELECT).order("id", desc=True).execute().data or []
     plans = [_flatten_plan_row(r) for r in plan_rows]
     company_emp_ids = {str(e.get("employee_id")) for e in employees}
-    if not master:
+    if is_training_manager or not master:
         plans = [p for p in plans if str(p.get("employee_id")) in company_emp_ids]
     plan_by_emp = {str(p.get("employee_id")): p for p in plans if p.get("employee_id")}
 
@@ -619,6 +632,7 @@ def manager_dashboard(user: dict = Depends(get_current_user)):
             "name": e.get("name"),
             "role": e.get("role"),
             "department": e.get("department"),
+            "manager": e.get("manager"),
             "training_status": e.get("training_status"),
             "progress": p.get("progress") or 0,
             "plan_id": p.get("id"),
@@ -629,17 +643,30 @@ def manager_dashboard(user: dict = Depends(get_current_user)):
     users = sb.table("users").select(
         "id,email,display_name,role,employee_id,is_active"
     ).order("id").execute().data or []
-    team = [
-        {
-            "id": u.get("id"),
-            "email": u.get("email"),
-            "full_name": u.get("display_name") or u.get("email"),
-            "role": u.get("role"),
-            "is_active": u.get("is_active", True),
-        }
-        for u in users
-        if (master or (company and str(u.get("employee_id") or "").startswith(f"{company}-")))
-    ]
+    if is_training_manager:
+        team = [
+            {
+                "id": u.get("id"),
+                "email": u.get("email"),
+                "full_name": u.get("display_name") or u.get("email"),
+                "role": u.get("role"),
+                "is_active": u.get("is_active", True),
+            }
+            for u in users
+            if str(u.get("employee_id")) in company_emp_ids
+        ]
+    else:
+        team = [
+            {
+                "id": u.get("id"),
+                "email": u.get("email"),
+                "full_name": u.get("display_name") or u.get("email"),
+                "role": u.get("role"),
+                "is_active": u.get("is_active", True),
+            }
+            for u in users
+            if (master or (company and str(u.get("employee_id") or "").startswith(f"{company}-")))
+        ]
 
     progress_values = [e["progress"] for e in employees_out]
     return {

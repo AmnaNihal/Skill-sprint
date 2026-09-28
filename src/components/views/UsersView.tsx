@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
-import { Users, Plus, Search, Shield, X, UserCheck, RefreshCw } from 'lucide-react';
+import { Users, Plus, Search, Shield, X, UserCheck, RefreshCw, Check } from 'lucide-react';
 
 interface UserRow {
   id: string | number;
@@ -17,6 +17,7 @@ interface UserRow {
 interface EmpOption {
   employee_id: string;
   name: string;
+  reporting_manager?: string;
 }
 
 const EMPTY = { full_name: '', email: '', password: '', role: 'learner', employee_id: '' };
@@ -34,6 +35,9 @@ export const UsersView: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
+  const [teamUser, setTeamUser] = useState<UserRow | null>(null);
+  const [teamSelected, setTeamSelected] = useState<Set<string>>(new Set());
+  const [teamSaving, setTeamSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -88,6 +92,38 @@ export const UsersView: React.FC = () => {
       addToast(err instanceof Error ? err.message : 'Failed to create account', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openTeam = (u: UserRow) => {
+    const key = (u.email || '').toLowerCase();
+    setTeamUser(u);
+    setTeamSelected(
+      new Set(emps.filter(e => (e.reporting_manager || '').toLowerCase() === key).map(e => e.employee_id)),
+    );
+  };
+
+  const toggleEmp = (id: string) => {
+    setTeamSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const saveTeam = async () => {
+    if (!teamUser) return;
+    setTeamSaving(true);
+    try {
+      await api.post(`/auth/users/${teamUser.id}/team`, { employee_ids: Array.from(teamSelected) });
+      addToast(`Assigned ${teamSelected.size} employee(s) to ${teamUser.full_name}`, 'success');
+      setTeamUser(null);
+      load();
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Failed to assign team', 'error');
+    } finally {
+      setTeamSaving(false);
     }
   };
 
@@ -162,14 +198,15 @@ export const UsersView: React.FC = () => {
                 <th className="px-5 py-4">Role</th>
                 <th className="px-5 py-4">Linked Employee</th>
                 <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-purple-900/20">
               {loading && (
-                <tr><td colSpan={4} className="px-5 py-10 text-center text-slate-400">Loading accounts…</td></tr>
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-400">Loading accounts…</td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={4} className="px-5 py-10 text-center text-slate-400">No accounts found.</td></tr>
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-400">No accounts found.</td></tr>
               )}
               {filtered.map(u => (
                 <tr key={String(u.id)} className="hover:bg-purple-950/20 transition">
@@ -198,6 +235,18 @@ export const UsersView: React.FC = () => {
                     <span className={`text-[11px] px-2 py-0.5 rounded-full border ${u.is_active === false ? 'bg-rose-500/10 text-rose-300 border-rose-500/30' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'}`}>
                       {u.is_active === false ? 'Inactive' : 'Active'}
                     </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    {u.role === 'training_manager' ? (
+                      <button
+                        onClick={() => openTeam(u)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-purple-500/10 text-purple-300 border border-purple-500/30 text-[11px] font-semibold hover:bg-purple-600 hover:text-white transition"
+                      >
+                        <Users className="w-3.5 h-3.5" /> Assign Team
+                      </button>
+                    ) : (
+                      <span className="text-slate-600 text-xs">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -267,6 +316,63 @@ export const UsersView: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {teamUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-purple-800/50 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+            <div className="p-5 border-b border-purple-900/30 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-white text-base">Assign Team</h3>
+                <p className="text-xs text-slate-400">{teamUser.full_name} · {teamUser.email}</p>
+              </div>
+              <button onClick={() => setTeamUser(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5">
+              <p className="text-xs text-slate-400 mb-3">
+                Select the employees that report to this training manager ({teamSelected.size} selected).
+              </p>
+              <div className="max-h-72 overflow-y-auto space-y-1.5">
+                {emps.length === 0 && <p className="text-xs text-slate-500">No employees available to assign.</p>}
+                {emps.map(e => {
+                  const checked = teamSelected.has(e.employee_id);
+                  return (
+                    <button
+                      type="button"
+                      key={e.employee_id}
+                      onClick={() => toggleEmp(e.employee_id)}
+                      className={
+                        'w-full flex items-center gap-3 px-3 py-2 rounded-xl border text-left transition ' +
+                        (checked ? 'bg-purple-600/20 border-purple-500/40' : 'bg-slate-950/60 border-purple-900/30 hover:bg-slate-800')
+                      }
+                    >
+                      <span className={
+                        'w-4 h-4 rounded border flex items-center justify-center shrink-0 ' +
+                        (checked ? 'bg-purple-600 border-purple-500 text-white' : 'border-slate-600')
+                      }>
+                        {checked && <Check className="w-3 h-3" />}
+                      </span>
+                      <span className="text-xs text-slate-200">{e.name}</span>
+                      <span className="text-[10px] text-slate-500 font-mono ml-auto">{e.employee_id}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="p-5 border-t border-purple-900/30 flex items-center justify-end gap-3">
+              <button onClick={() => setTeamUser(null)} className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white">Cancel</button>
+              <button
+                onClick={saveTeam}
+                disabled={teamSaving}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold disabled:opacity-50"
+              >
+                {teamSaving ? 'Saving…' : 'Save Team'}
+              </button>
+            </div>
           </div>
         </div>
       )}

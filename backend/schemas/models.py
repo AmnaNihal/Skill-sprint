@@ -134,6 +134,10 @@ class QuizGradeRequest(BaseModel):
     answers: dict[str, str] = {}
 
 
+class TeamAssignRequest(BaseModel):
+    employee_ids: list[str] = []
+
+
 class AssessmentSubmitRequest(BaseModel):
     plan_id: str | int
     assessment_id: str

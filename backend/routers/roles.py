@@ -112,8 +112,8 @@ def meta_options(user: dict = Depends(get_current_user)):
 
     managers = []
     for u in user_rows:
-        # Reporting managers are normal company managers (not company administrators).
-        if u.get("role") != "manager":
+        # Reporting managers include company managers and training managers (learning managers).
+        if u.get("role") not in ("manager", "training_manager"):
             continue
         if not (is_master(user) or str(u.get("id")) == str(user.get("id")) or owns_employee(user, u.get("employee_id"))):
             continue
