@@ -15,6 +15,7 @@ import { PlanDetailsView } from './components/views/PlanDetailsView';
 import { ValidationView } from './components/views/ValidationView';
 import { ReviewsView } from './components/views/ReviewsView';
 import { LearnerDashboardView } from './components/views/LearnerDashboardView';
+import { ManagerDashboardView } from './components/views/ManagerDashboardView';
 import { ReportsView } from './components/views/ReportsView';
 
 import { Sidebar } from './components/layout/Sidebar';
@@ -37,18 +38,17 @@ const LoadingScreen: React.FC = () => (
   </div>
 );
 
+const homeForRole = (role?: string) =>
+  role === 'admin' ? '/dashboard' : role === 'learner' ? '/learner' : '/team';
+
 const RequireAuth: React.FC<{ children: React.ReactElement; adminOnly?: boolean }> = ({ children, adminOnly }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const { currentRole } = useApp();
 
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  if (adminOnly && user.role === 'learner' && currentRole === 'admin') {
-    // allow if explicit learner view; block admin routes for learners
-  }
-  if (adminOnly && user.role === 'learner') {
-    return <Navigate to="/learner" replace />;
+  if (adminOnly && user.role !== 'admin') {
+    return <Navigate to={homeForRole(user.role)} replace />;
   }
   return children;
 };
@@ -160,6 +160,14 @@ export const App: React.FC = () => {
           element={
             <RequireAuth>
               <AppShell><LearnerDashboardView /></AppShell>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/team"
+          element={
+            <RequireAuth>
+              <AppShell><ManagerDashboardView /></AppShell>
             </RequireAuth>
           }
         />

@@ -11,7 +11,7 @@ from reporting.tabular import REPORT_TITLES, build_report
 from routers.plans import PLAN_LIST_SELECT, _fetch_plan_row, _flatten_plan_row, _match_score, _normalize_plan, review_plan
 from schemas.models import ReviewDecision
 from security.auth import get_current_user, require_admin
-from security.tenancy import filter_documents, filter_employees, is_master, owns_employee
+from security.tenancy import filter_documents, filter_employees, is_master, owner_key, owns_employee
 
 router = APIRouter(tags=["validation", "reviews", "reports", "dashboard"])
 
@@ -554,4 +554,76 @@ def learner_dashboard(plan_id: str, user: dict = Depends(get_current_user)):
         "adaptive_recommendations": recommendations[:8],
         "weak_areas": weak_areas[:8],
         "plan_recommendations": payload.get("progress_recommendations") or [],
+    }
+
+@router.get("/dashboard/manager")
+def manager_dashboard(user: dict = Depends(get_current_user)):
+    """Manager view: all learning-manager accounts and every employee's plan/progress for the company."""
+    sb = get_supabase()
+
+    # Company key comes from the manager's own employee tag (e.g. U25-OWNER) or their owner key.
+    emp = str(user.get("employee_id") or "")
+    company = emp.split("-", 1)[0] if "-" in emp else (owner_key(user) or "")
+    master = is_master(user)
+
+    employees = sb.table("employees").select(
+        "employee_id,name,role,department,training_status"
+    ).order("employee_id").execute().data or []
+    if not master:
+        employees = [
+            e for e in employees
+            if company and str(e.get("employee_id") or "").startswith(f"{company}-")
+        ]
+
+    plan_rows = sb.table("plans").select(PLAN_LIST_SELECT).order("id", desc=True).execute().data or []
+    plans = [_flatten_plan_row(r) for r in plan_rows]
+    company_emp_ids = {str(e.get("employee_id")) for e in employees}
+    if not master:
+        plans = [p for p in plans if str(p.get("employee_id")) in company_emp_ids]
+    plan_by_emp = {str(p.get("employee_id")): p for p in plans if p.get("employee_id")}
+
+    employees_out = []
+    for e in employees:
+        p = plan_by_emp.get(str(e.get("employee_id"))) or {}
+        employees_out.append({
+            "employee_id": e.get("employee_id"),
+            "name": e.get("name"),
+            "role": e.get("role"),
+            "department": e.get("department"),
+            "training_status": e.get("training_status"),
+            "progress": p.get("progress") or 0,
+            "plan_id": p.get("id"),
+            "status": p.get("status"),
+            "verification_status": p.get("verification_status"),
+        })
+
+    users = sb.table("users").select(
+        "id,email,display_name,role,employee_id,is_active"
+    ).order("id").execute().data or []
+    team = [
+        {
+            "id": u.get("id"),
+            "email": u.get("email"),
+            "full_name": u.get("display_name") or u.get("email"),
+            "role": u.get("role"),
+            "is_active": u.get("is_active", True),
+        }
+        for u in users
+        if (master or (company and str(u.get("employee_id") or "").startswith(f"{company}-")))
+    ]
+
+    progress_values = [e["progress"] for e in employees_out]
+    return {
+        "company": company or ("ALL" if master else ""),
+        "totals": {
+            "employees": len(employees_out),
+            "plans": sum(1 for e in employees_out if e["plan_id"]),
+            "learning_managers": sum(1 for t in team if t["role"] == "training_manager"),
+            "managers": sum(1 for t in team if t["role"] == "manager"),
+            "on_track": sum(1 for e in employees_out if e["progress"] >= 70),
+            "behind": sum(1 for e in employees_out if e["progress"] < 30),
+            "avg_progress": round(sum(progress_values) / len(progress_values)) if progress_values else 0,
+        },
+        "employees": employees_out,
+        "team": team,
     }

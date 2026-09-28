@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import {
   FileText, CheckCircle2, Clock, Shield, ChevronRight, UserCheck, Sparkles,
@@ -76,6 +77,8 @@ interface PlanDetail {
 
 export const PlanDetailsView: React.FC = () => {
   const { setPlanReviewModalOpen, setQuizModalOpen, setSelectedPlanId, addToast } = useApp();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
   const [plan, setPlan] = useState<PlanDetail | null>(null);
@@ -263,20 +266,24 @@ export const PlanDetailsView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap">
-            <button
-              onClick={revalidate}
-              className="flex-1 lg:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 text-sm font-medium transition"
-            >
-              <RefreshCw className="w-4 h-4 text-purple-400" />
-              Re-run Validation
-            </button>
-            <button
-              onClick={() => setPlanReviewModalOpen(true)}
-              className="flex-1 lg:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-purple-600/30 transition ring-1 ring-purple-400/30"
-            >
-              <UserCheck className="w-4 h-4" />
-              Review & Sign Off
-            </button>
+            {isAdmin && (
+              <>
+                <button
+                  onClick={revalidate}
+                  className="flex-1 lg:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 text-sm font-medium transition"
+                >
+                  <RefreshCw className="w-4 h-4 text-purple-400" />
+                  Re-run Validation
+                </button>
+                <button
+                  onClick={() => setPlanReviewModalOpen(true)}
+                  className="flex-1 lg:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-purple-600/30 transition ring-1 ring-purple-400/30"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  Review &amp; Sign Off
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -312,7 +319,7 @@ export const PlanDetailsView: React.FC = () => {
         </div>
       </div>
 
-      {(plan.generation?.model || plan.generation?.prompt_version || (plan.audit?.length || 0) > 0) && (
+      {isAdmin && (plan.generation?.model || plan.generation?.prompt_version || (plan.audit?.length || 0) > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-slate-900/80 rounded-2xl border border-purple-900/30 p-5">
             <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">Model &amp; Prompt Logging</h3>
@@ -390,7 +397,9 @@ export const PlanDetailsView: React.FC = () => {
               ['validation', <Shield key="v" className="w-4 h-4" />, `Validation (${plan.validations?.length || 0})`],
               ['citations', <FileText key="c" className="w-4 h-4" />, 'Source Citations'],
             ] as const
-          ).map(([key, icon, label]) => (
+          )
+            .filter(([key]) => isAdmin || key === 'modules' || key === 'tasks')
+            .map(([key, icon, label]) => (
             <button
               key={key}
               onClick={() => setActiveTab(key as typeof activeTab)}

@@ -16,6 +16,7 @@ from python_validation.validation_context import build_context
 from schemas.models import (
     AssessmentSubmitRequest,
     GeneratePlanRequest,
+    QuizGradeRequest,
     QuizSubmitRequest,
     ReviewDecision,
     ToggleTaskRequest,
@@ -53,6 +54,24 @@ def _match_score(genai_value, python_value, result: str) -> int:
     if g == p:
         return 100
     return int(round(difflib.SequenceMatcher(None, g, p).ratio() * 100))
+
+
+def _quiz_is_correct(question: dict, selected: str | None) -> bool:
+    """Grade a single quiz answer against its correct_answer (text or index based)."""
+    if selected is None:
+        return False
+    answers = question.get("correct_answer") or []
+    if not answers:
+        return False
+    first = answers[0]
+    if isinstance(first, int) and not isinstance(first, bool):
+        options = question.get("options") or []
+        try:
+            index = options.index(selected)
+        except ValueError:
+            return False
+        return index in {a for a in answers if isinstance(a, int) and not isinstance(a, bool)}
+    return any(str(a).strip().lower() == str(selected).strip().lower() for a in answers)
 
 
 def _pid(plan_id: str | int) -> int:
@@ -483,6 +502,12 @@ def get_plan(plan_id: str, user: dict = Depends(get_current_user)):
             if isinstance(a, dict):
                 all_assessments.append({**a, "module_id": mid})
 
+    # Correct answers are hidden from non-admin clients until they submit the quiz.
+    if user.get("role") != "admin":
+        for q in all_quizzes:
+            q.pop("correct_answer", None)
+            q.pop("explanation", None)
+
     return {
         **flat,
         "modules": modules,
@@ -729,6 +754,64 @@ def regenerate_plan(plan_id: str, user: dict = Depends(require_admin)):
             "consistency": sumry["consistency_score"],
         },
         "modules": len(plan_n.get("modules") or []),
+    }
+
+
+@router.post("/quiz/grade")
+def grade_quiz(payload: QuizGradeRequest, user: dict = Depends(get_current_user)):
+    """Grade submitted quiz answers server-side and reveal correct answers.
+
+    Correct answers are never sent to non-admin clients before submission; they are returned
+    here only after the learner submits their attempt.
+    """
+    sb = get_supabase()
+    row = _fetch_plan_row(sb, payload.plan_id)
+    _assert_plan_access(user, row)
+    pl = _normalize_plan(row.get("payload") or {})
+
+    quizzes: list[dict] = []
+    for m in pl.get("modules") or []:
+        for q in m.get("quiz") or []:
+            if isinstance(q, dict):
+                q.setdefault("id", q.get("quiz_id") or f"Q{len(quizzes) + 1:02d}")
+                quizzes.append(q)
+
+    answered = {str(k): v for k, v in (payload.answers or {}).items()}
+    results: list[dict] = []
+    correct_count = 0
+    for q in quizzes:
+        qid = str(q.get("id") or "")
+        if qid not in answered:
+            continue
+        selected = answered[qid]
+        is_correct = _quiz_is_correct(q, selected)
+        if is_correct:
+            correct_count += 1
+        results.append(
+            {
+                "quiz_id": qid,
+                "question": q.get("question") or "",
+                "selected": selected,
+                "correct_option": q.get("correct_answer") or [],
+                "correct": is_correct,
+                "explanation": q.get("explanation") or "",
+            }
+        )
+
+    total = len(results)
+    score = round(correct_count / total * 100) if total else 0
+    scores = dict(pl.get("quiz_scores") or {})
+    for r in results:
+        scores[r["quiz_id"]] = 100.0 if r["correct"] else 0.0
+    pl["quiz_scores"] = scores
+    sb.table("plans").update({"payload": pl, "updated_at": _now()}).eq("id", row["id"]).execute()
+    average = round(sum(scores.values()) / len(scores), 1) if scores else 0.0
+    return {
+        "score": score,
+        "correct_count": correct_count,
+        "total": total,
+        "average": average,
+        "results": results,
     }
 
 

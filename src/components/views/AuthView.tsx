@@ -6,7 +6,7 @@ import { IsometricHeroArt } from '../common/IsometricHeroArt';
 import {
   Sparkles, Shield, ArrowRight, Mail, Key, UserCheck, AlertCircle
 } from 'lucide-react';
-import type { UserRole } from '../../types';
+import type { NavigationTab, UserRole } from '../../types';
 
 interface AuthViewProps {
   mode?: 'login' | 'register';
@@ -26,9 +26,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ mode = 'login' }) => {
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
   const goAfterAuth = (role: UserRole) => {
+    const dest = role === 'admin' ? '/dashboard' : role === 'learner' ? '/learner' : '/team';
+    const view: NavigationTab = role === 'admin' ? 'dashboard' : role === 'learner' ? 'learnerDashboard' : 'managerDashboard';
     loginAs(role);
-    setCurrentView(role === 'admin' ? 'dashboard' : 'learnerDashboard');
-    navigate(role === 'admin' ? '/dashboard' : '/learner', { replace: true });
+    setCurrentView(view);
+    navigate(dest, { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

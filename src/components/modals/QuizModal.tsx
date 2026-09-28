@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/api';
-import { X, Award, RefreshCw, Trophy } from 'lucide-react';
+import { X, Award, RefreshCw, Trophy, CheckCircle2, XCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface QuizQuestion {
@@ -9,7 +9,7 @@ interface QuizQuestion {
   module_id?: string;
   question: string;
   options: string[];
-  correct_answer: string[] | number[];
+  correct_answer?: string[] | number[];
   explanation?: string;
 }
 
@@ -19,25 +19,43 @@ interface PlanQuizPayload {
   modules?: { title?: string }[];
 }
 
+interface GradeResult {
+  quiz_id: string;
+  question: string;
+  selected?: string;
+  correct_option?: (string | number)[];
+  correct: boolean;
+  explanation?: string;
+}
+
+interface GradeResponse {
+  score: number;
+  correct_count: number;
+  total: number;
+  average: number;
+  results: GradeResult[];
+}
+
 const PASS_THRESHOLD = 80;
 
-function isCorrect(question: QuizQuestion, selectedOption: string): boolean {
-  const answers = question.correct_answer || [];
-  if (!answers.length) return false;
-  const first = answers[0];
-  if (typeof first === 'number') {
-    return String(first) === String(question.options.indexOf(selectedOption));
+function correctOptionText(q: QuizQuestion | undefined, correct: (string | number)[] | undefined): string {
+  if (!correct || !correct.length) return 'Not available';
+  const first = correct[0];
+  if (typeof first === 'number' && q?.options?.length) {
+    return correct.map(c => (typeof c === 'number' ? q.options[c] : c)).filter(Boolean).join(', ');
   }
-  return answers.some(a => String(a).toLowerCase() === selectedOption.toLowerCase());
+  return correct.map(String).join(', ');
 }
 
 export const QuizModal: React.FC = () => {
   const { quizModalOpen, setQuizModalOpen, selectedPlanId, addToast } = useApp();
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const [results, setResults] = useState<GradeResult[]>([]);
   const [title, setTitle] = useState('Knowledge Verification');
 
   useEffect(() => {
@@ -45,6 +63,7 @@ export const QuizModal: React.FC = () => {
     setSubmitted(false);
     setSelectedAnswers({});
     setScore(0);
+    setResults([]);
 
     if (!selectedPlanId) {
       setQuestions([]);
@@ -63,7 +82,6 @@ export const QuizModal: React.FC = () => {
           module_id: q.module_id,
           question: q.question,
           options: q.options || [],
-          correct_answer: q.correct_answer || [],
           explanation: q.explanation,
         }));
         setQuestions(qs);
@@ -88,24 +106,31 @@ export const QuizModal: React.FC = () => {
     setSelectedAnswers(prev => ({ ...prev, [qIndex]: option }));
   };
 
-  const handleSubmit = () => {
-    if (!questions.length) return;
-    const calculated = questions.reduce(
-      (sum, q, idx) => (isCorrect(q, selectedAnswers[idx]) ? sum + 1 : sum),
-      0,
-    );
-    const percentage = Math.round((calculated / questions.length) * 100);
-    setScore(percentage);
-    setSubmitted(true);
-
-    if (percentage >= PASS_THRESHOLD) {
-      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      addToast(`Assessment Passed! Score: ${percentage}%`, 'success');
-    } else {
-      addToast(
-        `Score ${percentage}% below passing threshold (${PASS_THRESHOLD}%). Review modules and retry.`,
-        'error',
-      );
+  const handleSubmit = async () => {
+    if (!questions.length || !selectedPlanId) return;
+    setSubmitting(true);
+    try {
+      const answers: Record<string, string> = {};
+      questions.forEach((q, idx) => {
+        if (selectedAnswers[idx] !== undefined) answers[q.id] = selectedAnswers[idx];
+      });
+      const res = await api.post<GradeResponse>('/plans/quiz/grade', {
+        plan_id: selectedPlanId,
+        answers,
+      });
+      setScore(res.score);
+      setResults(res.results);
+      setSubmitted(true);
+      if (res.score >= PASS_THRESHOLD) {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        addToast(`Assessment Passed! Score: ${res.score}%`, 'success');
+      } else {
+        addToast(`Score ${res.score}% below passing threshold (${PASS_THRESHOLD}%).`, 'error');
+      }
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'Failed to submit quiz', 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -114,6 +139,9 @@ export const QuizModal: React.FC = () => {
     setSelectedAnswers({});
     setQuizModalOpen(false);
   };
+
+  const wrongCount = results.filter(r => !r.correct).length;
+  const questionById = (id: string) => questions.find(q => q.id === id);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
@@ -152,23 +180,64 @@ export const QuizModal: React.FC = () => {
               <p className="text-xs mt-1">Generate a plan with quiz questions first.</p>
             </div>
           ) : submitted ? (
-            <div className="text-center py-6 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-purple-600/20 text-purple-400 mx-auto flex items-center justify-center ring-4 ring-purple-500/30">
-                <Trophy className="w-8 h-8 text-yellow-400" />
-              </div>
-              <div>
+            <div className="space-y-5">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 rounded-full bg-purple-600/20 text-purple-400 mx-auto flex items-center justify-center ring-4 ring-purple-500/30">
+                  <Trophy className="w-8 h-8 text-yellow-400" />
+                </div>
                 <h4 className="text-2xl font-extrabold text-white">Score: {score}%</h4>
-                <p className="text-xs text-emerald-400 font-semibold mt-1">
-                  {score >= PASS_THRESHOLD
-                    ? `Passed! Competency verified (${PASS_THRESHOLD}% threshold).`
-                    : `Please re-attempt (need ${PASS_THRESHOLD}%).`}
+                <p className="text-xs font-semibold text-slate-400">
+                  {results.length - wrongCount}/{results.length} correct ·{' '}
+                  <span className={score >= PASS_THRESHOLD ? 'text-emerald-400' : 'text-amber-400'}>
+                    {score >= PASS_THRESHOLD ? 'Passed' : `Need ${PASS_THRESHOLD}%`}
+                  </span>
                 </p>
               </div>
+
+              <div className="space-y-3">
+                {results.map((r, i) => {
+                  const q = questionById(r.quiz_id);
+                  return (
+                    <div
+                      key={r.quiz_id || i}
+                      className={
+                        'rounded-xl border p-3 space-y-2 ' +
+                        (r.correct ? 'bg-emerald-500/5 border-emerald-500/25' : 'bg-rose-500/5 border-rose-500/25')
+                      }
+                    >
+                      <div className="flex items-start gap-2">
+                        {r.correct ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
+                        )}
+                        <p className="text-xs font-semibold text-slate-200">{i + 1}. {r.question || q?.question}</p>
+                      </div>
+                      <div className="pl-6 space-y-1 text-[11px]">
+                        <p className="text-slate-400">
+                          Your answer:{' '}
+                          <span className={r.correct ? 'text-emerald-300' : 'text-rose-300'}>
+                            {r.selected ?? '—'}
+                          </span>
+                        </p>
+                        {!r.correct && (
+                          <p className="text-slate-400">
+                            Correct answer:{' '}
+                            <span className="text-emerald-300">{correctOptionText(q, r.correct_option)}</span>
+                          </p>
+                        )}
+                        {r.explanation && <p className="text-slate-500 italic">{r.explanation}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
               <button
                 onClick={handleReset}
-                className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg transition"
+                className="w-full px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg transition"
               >
-                Close & Return to Dashboard
+                Close &amp; Return to Dashboard
               </button>
             </div>
           ) : (
@@ -212,10 +281,10 @@ export const QuizModal: React.FC = () => {
             </button>
             <button
               onClick={handleSubmit}
-              disabled={Object.keys(selectedAnswers).length < questions.length}
+              disabled={submitting || Object.keys(selectedAnswers).length < questions.length}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 transition disabled:opacity-50"
             >
-              Submit Answers
+              {submitting ? 'Grading…' : 'Submit Answers'}
             </button>
           </div>
         )}

@@ -11,11 +11,12 @@ export type NavigationTab =
   | 'validation'
   | 'reviews'
   | 'learnerDashboard'
+  | 'managerDashboard'
   | 'reports';
 
 export type NavView = NavigationTab;
 
-export type UserRole = 'admin' | 'learner' | 'manager';
+export type UserRole = 'admin' | 'learner' | 'manager' | 'reviewer' | 'training_manager';
 
 export type PipelineStep =
   | 'Validation'

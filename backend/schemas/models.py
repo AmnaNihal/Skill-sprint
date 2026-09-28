@@ -129,6 +129,11 @@ class QuizSubmitRequest(BaseModel):
     score: float = 0.0
 
 
+class QuizGradeRequest(BaseModel):
+    plan_id: str | int
+    answers: dict[str, str] = {}
+
+
 class AssessmentSubmitRequest(BaseModel):
     plan_id: str | int
     assessment_id: str

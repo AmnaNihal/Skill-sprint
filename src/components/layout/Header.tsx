@@ -15,6 +15,7 @@ const TITLES: Record<string, string> = {
   '/validation': 'Dual Validation',
   '/reviews': 'Review & Sign-Off',
   '/learner': 'My Curriculum',
+  '/team': 'Team Learning',
   '/reports': 'Reports & Analytics',
 };
 
@@ -57,14 +58,16 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <button
-          onClick={switchRole}
-          title={`Switch to ${role === 'admin' ? 'learner' : 'admin'} view`}
-          className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-purple-900/40 text-xs font-medium text-slate-300 hover:text-white transition"
-        >
-          <Repeat className="w-3.5 h-3.5 text-purple-400" />
-          <span>Switch view</span>
-        </button>
+        {(role === 'admin' || role === 'learner') && (
+          <button
+            onClick={switchRole}
+            title={`Switch to ${role === 'admin' ? 'learner' : 'admin'} view`}
+            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-purple-900/40 text-xs font-medium text-slate-300 hover:text-white transition"
+          >
+            <Repeat className="w-3.5 h-3.5 text-purple-400" />
+            <span>Switch view</span>
+          </button>
+        )}
 
         <button
           onClick={() => {

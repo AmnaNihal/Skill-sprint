@@ -22,6 +22,7 @@ const tabToPath: Record<NavigationTab, string> = {
   validation: '/validation',
   reviews: '/reviews',
   learnerDashboard: '/learner',
+  managerDashboard: '/team',
   reports: '/reports',
 };
 
@@ -39,6 +40,7 @@ const pathToTab: Record<string, NavigationTab> = {
   '/validation': 'validation',
   '/reviews': 'reviews',
   '/learner': 'learnerDashboard',
+  '/team': 'managerDashboard',
   '/reports': 'reports',
 };
 
@@ -99,6 +101,21 @@ const learnerGroups: NavGroup[] = [
   },
 ];
 
+const managerGroups: NavGroup[] = [
+  {
+    label: 'Team',
+    items: [
+      { tab: 'managerDashboard', label: 'Team Learning', icon: <Users className="w-4 h-4" /> },
+    ],
+  },
+  {
+    label: 'Training',
+    items: [
+      { tab: 'planDetails', label: 'Onboarding Plans', icon: <CheckCircle className="w-4 h-4" /> },
+    ],
+  },
+];
+
 export const Sidebar: React.FC = () => {
   const { setCurrentView, currentRole } = useApp();
   const { user, signOut } = useAuth();
@@ -107,7 +124,7 @@ export const Sidebar: React.FC = () => {
 
   const currentTab = pathToTab[location.pathname] || 'dashboard';
   const role = (user?.role as 'admin' | 'learner') || currentRole;
-  const groups = role === 'admin' ? adminGroups : learnerGroups;
+  const groups = role === 'admin' ? adminGroups : role === 'learner' ? learnerGroups : managerGroups;
 
   const go = (tab: NavigationTab) => {
     setCurrentView(tab);
