@@ -71,7 +71,7 @@ export const ValidationView: React.FC = () => {
     try {
       const data = await api.get<ValidationPayload>(`/validation/${id}`);
       setPayload(data);
-      const items = (data.findings || []).map(mapFinding);
+      const items = (data.findings || []).map((f, i) => mapFinding(f, i));
       setSelectedItem(items[0] || null);
     } catch (e) {
       addToast(e instanceof Error ? e.message : 'Failed to load validation', 'error');
