@@ -44,15 +44,23 @@ def _now() -> str:
 
 
 def _match_score(genai_value, python_value, result: str) -> int:
-    """Deterministic similarity (0-100) between the generated value and the expected ground truth."""
+    """Deterministic validation score (0-100) for one finding.
+
+    The score reflects the pipeline-2 outcome, not raw string similarity:
+    a validated match is 100, a missing item is 0, and an unresolved mismatch
+    falls back to the real textual similarity of the two compared values.
+    """
+    outcome = str(result or "").strip().lower()
+    if outcome in ("match", "pass", "covered", "ok", "verified"):
+        return 100
+    if outcome in ("missing", "missing ref", "missing reference", "not found", "absent"):
+        return 0
     g = str(genai_value if genai_value is not None else "").strip().lower()
     p = str(python_value if python_value is not None else "").strip().lower()
     if not g and not p:
         return 100
     if not g or not p:
         return 0
-    if g == p:
-        return 100
     return int(round(difflib.SequenceMatcher(None, g, p).ratio() * 100))
 
 

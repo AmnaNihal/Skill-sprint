@@ -283,7 +283,12 @@ export const ValidationView: React.FC = () => {
                         </span>
                         <h4 className="text-sm font-semibold text-white truncate">{item.title}</h4>
                       </div>
-                      <p className="text-xs text-slate-400 line-clamp-1">{item.aiGeneratedContent}</p>
+                      <p className="text-xs text-slate-400 line-clamp-1">
+                        Generated: {item.aiGeneratedContent}
+                      </p>
+                      <p className="text-[11px] text-slate-500 line-clamp-1">
+                        Expected: {item.ruleCitation}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">

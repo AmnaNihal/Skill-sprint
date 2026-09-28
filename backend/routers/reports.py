@@ -27,9 +27,7 @@ def get_validation(plan_id: str, user: dict = Depends(get_current_user)):
     findings = [
         {
             **f,
-            "match_score": f.get("match_score")
-            if isinstance(f.get("match_score"), int)
-            else _match_score(f.get("genai_value"), f.get("python_value"), f.get("result") or ""),
+            "match_score": _match_score(f.get("genai_value"), f.get("python_value"), f.get("result") or ""),
         }
         for f in findings
     ]
