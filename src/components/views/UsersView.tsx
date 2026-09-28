@@ -333,9 +333,28 @@ export const UsersView: React.FC = () => {
               </button>
             </div>
             <div className="p-5">
-              <p className="text-xs text-slate-400 mb-3">
-                Select the employees that report to this training manager ({teamSelected.size} selected).
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-slate-400">
+                  Select the employees that report to this training manager ({teamSelected.size} selected).
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setTeamSelected(new Set(emps.map(e => e.employee_id)))}
+                    className="text-[11px] font-semibold text-purple-300 hover:text-white"
+                  >
+                    Select all
+                  </button>
+                  <span className="text-slate-600">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setTeamSelected(new Set())}
+                    className="text-[11px] font-semibold text-slate-400 hover:text-white"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
               <div className="max-h-72 overflow-y-auto space-y-1.5">
                 {emps.length === 0 && <p className="text-xs text-slate-500">No employees available to assign.</p>}
                 {emps.map(e => {
