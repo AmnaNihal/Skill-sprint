@@ -30,19 +30,22 @@ interface ValidationPayload {
   findings: ValidationFinding[];
 }
 
-function mapFinding(f: ValidationFinding, i: number): ValidationItem {
+function mapFinding(f: ValidationFinding, i: number, reqScore?: number): ValidationItem {
   const match = (f.result || 'Mismatch') === 'Match';
   const statusMap: ValidationItem['status'] =
     f.validation_status === 'Verified' ? 'Verified'
       : f.validation_status === 'Verified with Warning' ? 'Under Review'
         : 'Flagged';
+  const score = typeof reqScore === 'number'
+    ? reqScore
+    : (typeof f.match_score === 'number' ? f.match_score : (match ? 100 : 0));
   return {
     id: f.id || String(i),
     requirementId: f.requirement_id || 'REQ-???',
     title: f.field_name || 'Validation check',
     aiGeneratedContent: f.genai_value || f.detail || '—',
     pythonRuleEngineStatus: match ? 'Match' : (f.result === 'Missing' ? 'Missing Ref' : 'Discrepancy'),
-    confidenceScore: typeof f.match_score === 'number' ? f.match_score : (match ? 100 : 0),
+    confidenceScore: score,
     ruleCitation: f.python_value || f.validation_status || 'ground-truth rule',
     status: statusMap,
   };
@@ -113,7 +116,21 @@ export const ValidationView: React.FC = () => {
   };
 
   const findings = payload?.findings || [];
-  const items = findings.map(mapFinding);
+
+  // Real per-requirement score: how many of that requirement's field checks actually match.
+  const reqTotals: Record<string, { total: number; match: number }> = {};
+  for (const f of findings) {
+    const rid = f.requirement_id || '?';
+    if (!reqTotals[rid]) reqTotals[rid] = { total: 0, match: 0 };
+    reqTotals[rid].total += 1;
+    if ((f.result || '') === 'Match') reqTotals[rid].match += 1;
+  }
+  const requirementScore = (rid?: string): number | undefined => {
+    const b = reqTotals[rid || '?'];
+    return b && b.total ? Math.round((b.match / b.total) * 100) : undefined;
+  };
+
+  const items = findings.map((f, i) => mapFinding(f, i, requirementScore(f.requirement_id)));
   const filteredItems = items.filter(item => {
     const matchesStatus =
       filterStatus === 'All' ||
@@ -130,9 +147,7 @@ export const ValidationView: React.FC = () => {
 
   const matchCount = items.filter(i => i.pythonRuleEngineStatus === 'Match').length;
   const flaggedCount = items.length - matchCount;
-  const avgConf = items.length
-    ? (items.reduce((s, i) => s + i.confidenceScore, 0) / items.length).toFixed(1)
-    : '0.0';
+  const avgConf = items.length ? Math.round((matchCount / items.length) * 100) : 0;
 
   if (selectedItem && !filteredItems.some(i => i.id === selectedItem.id) && filteredItems[0]) {
     setSelectedItem(filteredItems[0]);
@@ -201,9 +216,9 @@ export const ValidationView: React.FC = () => {
           <p className="text-[11px] text-amber-400 mt-0.5">Requires Review</p>
         </div>
         <div className="bg-slate-900/70 border border-purple-900/30 rounded-xl p-4">
-          <p className="text-xs text-slate-400">Avg Match Score</p>
+          <p className="text-xs text-slate-400">Plan Match Rate</p>
           <p className="text-2xl font-bold text-purple-300 mt-1">{avgConf}%</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Generated vs expected source</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">{matchCount}/{items.length} checks matched</p>
         </div>
       </div>
 
@@ -353,7 +368,7 @@ export const ValidationView: React.FC = () => {
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-950/70 border border-purple-900/30 flex justify-between items-center">
-                  <span className="text-slate-400">Ground-truth Match Score:</span>
+                  <span className="text-slate-400">Requirement Score (checks matched):</span>
                   <span className="text-emerald-400 font-bold font-mono text-sm">{selectedItem.confidenceScore}%</span>
                 </div>
               </div>
