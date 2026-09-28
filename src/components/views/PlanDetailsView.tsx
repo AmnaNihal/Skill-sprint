@@ -95,15 +95,19 @@ export const PlanDetailsView: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const id = planId || allPlans[0]?.id;
+    if (!id) {
+      // Keep the loading state until the plan list has actually resolved, so the
+      // empty state never flashes before the first plan is fetched.
+      if (listLoaded) {
+        setLoading(false);
+        setError('No onboarding plans yet. Generate a plan first.');
+      }
+      return;
+    }
     let alive = true;
     setLoading(true);
     setError('');
-    const id = planId || allPlans[0]?.id;
-    if (!id) {
-      setLoading(false);
-      if (listLoaded) setError('No onboarding plans yet. Generate a plan first.');
-      return;
-    }
     api.get<PlanDetail>(`/plans/${id}`)
       .then(data => {
         if (!alive) return;
