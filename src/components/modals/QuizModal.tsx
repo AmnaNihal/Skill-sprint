@@ -97,7 +97,8 @@ export const QuizModal: React.FC = () => {
     return () => {
       alive = false;
     };
-  }, [quizModalOpen, selectedPlanId, addToast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizModalOpen, selectedPlanId]);
 
   if (!quizModalOpen) return null;
 
