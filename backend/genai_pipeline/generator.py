@@ -1,7 +1,9 @@
 """Pipeline 1: GenAI generation (Gemini primary, OpenAI optional) + schema validation + retry."""
 from __future__ import annotations
 
+import hashlib
 import json
+import random
 import re
 import time
 from datetime import datetime, timezone
@@ -18,6 +20,37 @@ MAX_RETRIES = 3
 PROMPT_VERSION = "v1.3"
 TEMPLATE_NAME = "onboarding_plan_generation"
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
+
+
+def _shuffle_quiz(quiz: dict) -> None:
+    options = quiz.get("options") or []
+    answers = quiz.get("correct_answer") or []
+    if len(options) < 2:
+        return
+    if not answers or not all(isinstance(a, int) and not isinstance(a, bool) for a in answers):
+        return
+    seed = str(quiz.get("id") or quiz.get("question") or "")
+    order = list(range(len(options)))
+    random.Random(int(hashlib.md5(seed.encode("utf-8")).hexdigest(), 16)).shuffle(order)
+    old_to_new = {old: new for new, old in enumerate(order)}
+    quiz["options"] = [options[i] for i in order]
+    quiz["correct_answer"] = sorted(old_to_new[a] for a in answers if a in old_to_new)
+
+
+def shuffle_quizzes(quizzes: list) -> None:
+    """Shuffle options for a list of quiz dicts (remapping index-based correct_answer)."""
+    for quiz in quizzes or []:
+        if isinstance(quiz, dict):
+            _shuffle_quiz(quiz)
+
+
+def shuffle_quiz_options(plan: dict) -> None:
+    """Shuffle each quiz's options and remap index-based correct_answer so the correct
+    choice is distributed across A/B/C/D instead of always being the first option.
+    Deterministic per question id so repeated renders stay stable."""
+    for module in plan.get("modules") or []:
+        if isinstance(module, dict):
+            shuffle_quizzes(module.get("quiz") or [])
 # Per-model free-tier quotas differ — try in order. 2.5-* removed (404 for this key).
 GEMINI_MODEL_FALLBACKS = [
     "gemini-3.6-flash",
@@ -472,6 +505,7 @@ def fallback_plan(
         "retry_log": [f"fallback:{reason}"] if reason else ["fallback"],
         "source_document_versions": sorted({b.get("source_document_id", "") for b in source_blocks if b.get("source_document_id")}),
     }
+    shuffle_quiz_options(plan)
     return {"plan": plan, "meta": meta}
 
 
@@ -812,6 +846,7 @@ def generate_onboarding_plan(
                 aligned_modules = _align_due_stages(plan_data, requirements)
                 _enforce_module_mandatory(plan_data, requirements)
                 _drop_dangling_prerequisites(plan_data)
+                shuffle_quiz_options(plan_data)
                 plan = _coerce_plan(plan_data, role_title)
                 meta = {
                     "prompt_version": PROMPT_VERSION,

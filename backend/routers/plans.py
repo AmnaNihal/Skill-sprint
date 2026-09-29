@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from comparison_engine.comparator import compare_results, summary
 from database.supabase_client import get_supabase
 from genai_pipeline.consistency import compare_generations
-from genai_pipeline.generator import GenerationError, generate_onboarding_plan
+from genai_pipeline.generator import GenerationError, generate_onboarding_plan, shuffle_quizzes
 from genai_pipeline.schema_validator import validate_genai_payload
 from hallucination_checks.detector import flag_unsupported
 from python_validation.audit import REVIEWER_OVERRIDE, audit_events_from_report, build_audit_entry
@@ -123,6 +123,19 @@ def _quiz_is_correct(question: dict, selected: str | None) -> bool:
             return False
         return index in {a for a in answers if isinstance(a, int) and not isinstance(a, bool)}
     return any(str(a).strip().lower() == str(selected).strip().lower() for a in answers)
+
+
+def _correct_texts(question: dict) -> list[str]:
+    """Resolve a quiz's correct_answer (indices or text) to option text for display."""
+    options = question.get("options") or []
+    answers = question.get("correct_answer") or []
+    out: list[str] = []
+    for a in answers:
+        if isinstance(a, int) and not isinstance(a, bool) and 0 <= a < len(options):
+            out.append(str(options[a]))
+        else:
+            out.append(str(a))
+    return out
 
 
 def _pid(plan_id: str | int) -> int:
@@ -559,6 +572,7 @@ def get_plan(plan_id: str, user: dict = Depends(get_current_user)):
 
     # Correct answers are hidden from non-admin clients until they submit the quiz.
     if user.get("role") != "admin":
+        shuffle_quizzes(all_quizzes)
         for q in all_quizzes:
             q.pop("correct_answer", None)
             q.pop("explanation", None)
@@ -847,7 +861,7 @@ def grade_quiz(payload: QuizGradeRequest, user: dict = Depends(get_current_user)
                 "quiz_id": qid,
                 "question": q.get("question") or "",
                 "selected": selected,
-                "correct_option": q.get("correct_answer") or [],
+                "correct_option": _correct_texts(q),
                 "correct": is_correct,
                 "explanation": q.get("explanation") or "",
             }
